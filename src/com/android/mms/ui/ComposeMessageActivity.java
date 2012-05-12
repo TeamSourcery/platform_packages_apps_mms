@@ -892,7 +892,7 @@ public class ComposeMessageActivity extends Activity
 
             menu.setHeaderTitle(R.string.message_options);
 
-            MsgListMenuClickListener l = new MsgListMenuClickListener();
+            MsgListMenuClickListener l = new MsgListMenuClickListener(cursor.getPosition());
 
             // It is unclear what would make most sense for copying an MMS message
             // to the clipboard, so we currently do SMS only.
@@ -1091,11 +1091,16 @@ public class ComposeMessageActivity extends Activity
      * Context menu handlers for the message list view.
      */
     private final class MsgListMenuClickListener implements MenuItem.OnMenuItemClickListener {
+            private int mPosition;
+    public MsgListMenuClickListener(int position) {
+            mPosition = position;
+         }
         public boolean onMenuItemClick(MenuItem item) {
             if (!isCursorValid()) {
                 return false;
             }
             Cursor cursor = mMsgListAdapter.getCursor();
+            cursor.moveToPosition(mPosition);
             String type = cursor.getString(COLUMN_MSG_TYPE);
             long msgId = cursor.getLong(COLUMN_ID);
             MessageItem msgItem = getMessageItem(type, msgId, true);
