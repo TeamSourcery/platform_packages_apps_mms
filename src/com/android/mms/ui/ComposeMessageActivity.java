@@ -40,6 +40,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
+import java.text.Normalizer;
 
 import android.app.ActionBar;
 import android.app.Activity;
@@ -56,6 +59,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.DialogInterface.OnClickListener;
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.database.Cursor;
@@ -73,6 +77,7 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.Parcelable;
 import android.os.SystemProperties;
+import android.preference.PreferenceManager;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Email;
 import android.provider.ContactsContract.Contacts;
@@ -105,6 +110,8 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewGroup.LayoutParams;
 import android.view.ViewStub;
 import android.view.WindowManager;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -114,12 +121,15 @@ import android.view.inputmethod.InputMethodManager;
 import android.webkit.MimeTypeMap;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView.OnItemLongClickListener;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.GridView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.SimpleAdapter;
 import android.widget.CursorAdapter;
 import android.widget.TextView;
@@ -220,10 +230,9 @@ public class ComposeMessageActivity extends Activity
     private static final int MENU_UNLOCK_MESSAGE        = 29;
     private static final int MENU_COPY_TO_DRM_PROVIDER  = 30;
     private static final int MENU_PREFERENCES           = 31;
- 
-    private static final int MENU_ADD_TEMPLATE          = 32;
-    private static final int MENU_INSERT_EMOJI          = 33;
 
+    private static final int MENU_ADD_TEMPLATE          = 32;
+    private static final int MENU_INSERT_EMOJI         = 33;
 
     private static final int RECIPIENTS_MAX_LENGTH = 312;
 
@@ -283,6 +292,7 @@ public class ComposeMessageActivity extends Activity
 
     private AlertDialog mSmileyDialog;
     private AlertDialog mEmojiDialog;
+    private View mEmojiView;
     private ProgressDialog mProgressDialog;
 
     private boolean mWaitingForSubActivity;
@@ -309,6 +319,71 @@ public class ComposeMessageActivity extends Activity
     //==========================================================
     // Inner classes
     //==========================================================
+
+    // InputFilter which attempts to substitute characters that cannot be
+    // encoded in the limited GSM 03.38 character set. In many cases this will
+    // prevent the keyboards auto-correction feature from inserting characters
+    // that would switch the message from 7-bit GSM encoding (160 char limit)
+    // to 16-bit Unicode encoding (70 char limit).
+
+    private class StripUnicode implements InputFilter {
+
+        private CharsetEncoder gsm =
+            Charset.forName("gsm-03.38-2000").newEncoder();
+
+        private Pattern diacritics =
+            Pattern.compile("\\p{InCombiningDiacriticalMarks}");
+
+        public CharSequence filter(CharSequence source, int start, int end,
+                                   Spanned dest, int dstart, int dend) {
+
+            Boolean unfiltered = true;
+            StringBuilder output = new StringBuilder(end - start);
+
+            for (int i = start; i < end; i++) {
+                char c = source.charAt(i);
+
+                // Character is encodable by GSM, skip filtering
+                if (gsm.canEncode(c)) {
+                    output.append(c);
+                }
+                // Character requires Unicode, try to replace it
+                else {
+                    unfiltered = false;
+                    String s = String.valueOf(c);
+
+                    // Try normalizing the character into Unicode NFKD form and
+                    // stripping out diacritic mark characters.
+                    s = Normalizer.normalize(s, Normalizer.Form.NFKD);
+                    s = diacritics.matcher(s).replaceAll("");
+
+                    // Special case characters that don't get stripped by the
+                    // above technique.
+                    s = s.replace("Œ", "OE");
+                    s = s.replace("œ", "oe");
+
+                    output.append(s);
+                }
+            }
+
+            // No changes were attempted, so don't return anything
+            if (unfiltered) {
+                return null;
+            }
+            // Source is a spanned string, so copy the spans from it
+            else if (source instanceof Spanned) {
+                SpannableString spannedoutput = new SpannableString(output);
+                TextUtils.copySpansFrom(
+                    (Spanned) source, start, end, null, spannedoutput, 0);
+
+                return spannedoutput;
+            }
+            // Source is a vanilla charsequence, so return output as-is
+            else {
+                return output;
+            }
+        }
+    }
 
     private void editSlideshow() {
         Uri dataUri = mWorkingMessage.saveAsMms(false);
@@ -901,6 +976,9 @@ public class ComposeMessageActivity extends Activity
 
             menu.setHeaderTitle(R.string.message_options);
 
+            // When the listener is called, it is not guaranteed that the cursor
+            // will be pointing to the current message, so we must pass the
+            // correct position to the listener.
             MsgListMenuClickListener l = new MsgListMenuClickListener(cursor.getPosition());
 
             // It is unclear what would make most sense for copying an MMS message
@@ -1100,16 +1178,19 @@ public class ComposeMessageActivity extends Activity
      * Context menu handlers for the message list view.
      */
     private final class MsgListMenuClickListener implements MenuItem.OnMenuItemClickListener {
-            private int mPosition;
-    public MsgListMenuClickListener(int position) {
+        private int mPosition;
+
+        public MsgListMenuClickListener(int position) {
             mPosition = position;
-         }
+        }
+
         public boolean onMenuItemClick(MenuItem item) {
             if (!isCursorValid()) {
                 return false;
             }
             Cursor cursor = mMsgListAdapter.getCursor();
             cursor.moveToPosition(mPosition);
+
             String type = cursor.getString(COLUMN_MSG_TYPE);
             long msgId = cursor.getLong(COLUMN_ID);
             MessageItem msgItem = getMessageItem(type, msgId, true);
@@ -1732,15 +1813,26 @@ public class ComposeMessageActivity extends Activity
         super.onCreate(savedInstanceState);
 
         resetConfiguration(getResources().getConfiguration());
-
-        setContentView(R.layout.compose_message_activity);
+        
+        SharedPreferences prefs = PreferenceManager
+                .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
+        boolean stripUnicode = prefs.getBoolean(MessagingPreferenceActivity.STRIP_UNICODE, false);
         setProgressBarVisibility(false);
+        setContentView(R.layout.compose_message_activity);
 
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE |
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
 
         // Initialize members for UI elements.
         initResourceRefs();
+
+        LengthFilter lengthFilter = new LengthFilter(MmsConfig.getMaxTextLimit());
+
+        if (stripUnicode) {
+            mTextEditor.setFilters(new InputFilter[] { new StripUnicode(), lengthFilter });
+        } else {
+            mTextEditor.setFilters(new InputFilter[] { lengthFilter });
+        }
 
         mContentResolver = getContentResolver();
         mBackgroundQueryHandler = new BackgroundQueryHandler(mContentResolver);
@@ -1828,6 +1920,7 @@ public class ComposeMessageActivity extends Activity
 
         // Let the working message know what conversation it belongs to
         mWorkingMessage.setConversation(mConversation);
+        invalidateOptionsMenu();
 
         // Show the recipients editor if we don't have a valid thread. Hide it otherwise.
         if (mConversation.getThreadId() <= 0) {
@@ -1843,10 +1936,6 @@ public class ComposeMessageActivity extends Activity
         } else {
             hideRecipientEditor();
         }
-        invalidateOptionsMenu();    // do after show/hide of recipients editor because the options
-                                    // menu depends on the recipients, which depending upon the
-                                    // visibility of the recipients editor, returns a different
-                                    // value (see getRecipients()).
 
         updateSendButtonState();
 
@@ -2413,11 +2502,11 @@ public class ComposeMessageActivity extends Activity
         if (!mWorkingMessage.hasSlideshow()) {
             menu.add(0, MENU_INSERT_SMILEY, 0, R.string.menu_insert_smiley).setIcon(
                     R.drawable.ic_menu_emoticons);
-        SharedPreferences prefs = PreferenceManager
- 	      .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
- 	boolean enableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
- 	if (enableEmojis) {
- 	    menu.add(0, MENU_INSERT_EMOJI, 0, R.string.menu_insert_emoji);
+            SharedPreferences prefs = PreferenceManager
+                    .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
+            boolean enableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
+            if (enableEmojis) {
+                menu.add(0, MENU_INSERT_EMOJI, 0, R.string.menu_insert_emoji);
             }
         }
 
@@ -2503,8 +2592,8 @@ public class ComposeMessageActivity extends Activity
                 showSmileyDialog();
                 break;
             case MENU_INSERT_EMOJI:
- 	        showEmojiDialog();
- 	 	break;
+                showEmojiDialog();
+                break;
             case MENU_VIEW_CONTACT: {
                 // View the contact for the first (and only) recipient.
                 ContactList list = getRecipients();
@@ -3139,14 +3228,14 @@ public class ComposeMessageActivity extends Activity
 
         CharSequence text = mWorkingMessage.getText();
         SharedPreferences prefs = PreferenceManager
- 	      .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
+                .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
 
-         // TextView.setTextKeepState() doesn't like null input.
+        // TextView.setTextKeepState() doesn't like null input.
         if (text != null) {
             // Restore the emojis if necessary
             boolean enableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
             if (enableEmojis) {
-                mTextEditor.setTextKeepState(EmojiParser.getInstance().addSmileySpans(text));
+                mTextEditor.setTextKeepState(EmojiParser.getInstance().addEmojiSpans(text));
             } else {
                 mTextEditor.setTextKeepState(text);
             }
@@ -3301,8 +3390,6 @@ public class ComposeMessageActivity extends Activity
         mTextEditor = (EditText) findViewById(R.id.embedded_text_editor);
         mTextEditor.setOnEditorActionListener(this);
         mTextEditor.addTextChangedListener(mTextEditorWatcher);
-        mTextEditor.setFilters(new InputFilter[] {
-                new LengthFilter(MmsConfig.getMaxTextLimit())});
         mTextCounter = (TextView) findViewById(R.id.text_counter);
         mSendButtonMms = (TextView) findViewById(R.id.send_button_mms);
         mSendButtonSms = (ImageButton) findViewById(R.id.send_button_sms);
@@ -3781,9 +3868,9 @@ public class ComposeMessageActivity extends Activity
                     // may be deleted.
                     updateSendFailedNotification();
                     // Return to message list if the last message on thread is being deleted
- 	 	    if (mMsgListAdapter.getCount() == 1) {
- 	 	       finish();
- 	 	    }
+                    if (mMsgListAdapter.getCount() == 1) {
+                        finish();
+                    }
                     break;
             }
             // If we're deleting the whole conversation, throw away
@@ -3879,23 +3966,49 @@ public class ComposeMessageActivity extends Activity
         mSmileyDialog.show();
     }
 
- private void showEmojiDialog() {
+    private void showEmojiDialog() {
         if (mEmojiDialog == null) {
             int[] icons = EmojiParser.DEFAULT_EMOJI_RES_IDS;
-            final String[] texts = getResources().getStringArray(EmojiParser.DEFAULT_EMOJI_TEXTS);
 
-            GridView gridView = new GridView(this);
-            gridView.setNumColumns(GridView.AUTO_FIT);
-            gridView.setColumnWidth(60);
-            gridView.setGravity(Gravity.CENTER);
+            int layout = R.layout.emoji_insert_view;
+            mEmojiView = getLayoutInflater().inflate(layout, null);
+
+            final GridView gridView = (GridView) mEmojiView.findViewById(R.id.emoji_grid_view);
             gridView.setAdapter(new ImageAdapter(this, icons));
+            final EditText editText = (EditText) mEmojiView.findViewById(R.id.emoji_edit_text);
+            final Button button = (Button) mEmojiView.findViewById(R.id.emoji_button);
+
             gridView.setOnItemClickListener(new OnItemClickListener() {
                 public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
-                    CharSequence emoji = EmojiParser.getInstance().addSmileySpans(texts[position]);
+                    // We use the new unified Unicode 6.1 emoji code points
+                    CharSequence emoji = EmojiParser.getInstance().addEmojiSpans(EmojiParser.mEmojiTexts[position]);
+                    editText.append(emoji);
+                }
+            });
+
+            gridView.setOnItemLongClickListener(new OnItemLongClickListener() {
+                @Override
+                public boolean onItemLongClick(AdapterView<?> parent, View view, int position,
+                        long id) {
+                    // We use the new unified Unicode 6.1 emoji code points
+                    CharSequence emoji = EmojiParser.getInstance().addEmojiSpans(EmojiParser.mEmojiTexts[position]);
                     if (mSubjectTextEditor != null && mSubjectTextEditor.hasFocus()) {
                         mSubjectTextEditor.append(emoji);
                     } else {
                         mTextEditor.append(emoji);
+                    }
+                    mEmojiDialog.dismiss();
+                    return true;
+                }
+            });
+
+            button.setOnClickListener(new android.view.View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (mSubjectTextEditor != null && mSubjectTextEditor.hasFocus()) {
+                        mSubjectTextEditor.append(editText.getText());
+                    } else {
+                        mTextEditor.append(editText.getText());
                     }
                     mEmojiDialog.dismiss();
                 }
@@ -3906,10 +4019,13 @@ public class ComposeMessageActivity extends Activity
             b.setTitle(getString(R.string.menu_insert_emoji));
 
             b.setCancelable(true);
-            b.setView(gridView);
+            b.setView(mEmojiView);
 
             mEmojiDialog = b.create();
         }
+
+        final EditText editText = (EditText) mEmojiView.findViewById(R.id.emoji_edit_text);
+        editText.setText("");
 
         mEmojiDialog.show();
     }
