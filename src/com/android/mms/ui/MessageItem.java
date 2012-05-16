@@ -138,12 +138,12 @@ public class MessageItem {
             if (!isOutgoingMessage()) {
                 // Set "received" or "sent" time stamp
                 long date = cursor.getLong(columnsMap.mColumnSmsDate);
-               if (MessagingPreferenceActivity.getFullDateEnabled(context)) {
- 	           mTimestamp = MessageUtils.formatTimeStampString(context, date, true);
- 	       }
- 	       else {
- 	           mTimestamp = MessageUtils.formatTimeStampString(context, date, false);
- 	       }
+                if (MessagingPreferenceActivity.getFullDateEnabled(context)) {
+                	mTimestamp = MessageUtils.formatTimeStampString(context, date, true);
+                }
+                else {
+                	mTimestamp = MessageUtils.formatTimeStampString(context, date, false);
+                }
             }
 
             mLocked = cursor.getInt(columnsMap.mColumnSmsLocked) != 0;
@@ -237,10 +237,10 @@ public class MessageItem {
             }
 
             if (!isOutgoingMessage()) {
-               Boolean showfulldate = MessagingPreferenceActivity.getFullDateEnabled(context);
+            	Boolean showfulldate = MessagingPreferenceActivity.getFullDateEnabled(context);
                 if (PduHeaders.MESSAGE_TYPE_NOTIFICATION_IND == mMessageType) {
                     mTimestamp = context.getString(R.string.expire_on,
-                             MessageUtils.formatTimeStampString(context, timestamp, showfulldate));
+                            MessageUtils.formatTimeStampString(context, timestamp, showfulldate));
                 } else {
                     mTimestamp =  MessageUtils.formatTimeStampString(context, timestamp, showfulldate);
                 }

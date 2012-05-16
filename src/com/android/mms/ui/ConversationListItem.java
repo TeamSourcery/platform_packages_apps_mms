@@ -204,11 +204,11 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
 
         // Date
         if (MessagingPreferenceActivity.getFullDateEnabled(context)) {
- 	    mDateView.setText(MessageUtils.formatTimeStampString(context, conversation.getDate(), true));
- 	}
- 	else {
- 	    mDateView.setText(MessageUtils.formatTimeStampString(context, conversation.getDate(), false));
- 	}
+        	mDateView.setText(MessageUtils.formatTimeStampString(context, conversation.getDate(), true));
+        }
+        else {
+        	mDateView.setText(MessageUtils.formatTimeStampString(context, conversation.getDate(), false));
+        }
 
         // From.
         mFromView.setText(formatMessage());

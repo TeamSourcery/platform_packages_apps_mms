@@ -68,6 +68,6 @@
         <item>Mad</item>                     <!-- 18: x-( -->
         <item>Smirk</item>                   <!-- 19: :-/ -->
         <item>Poker face</item>              <!-- 20: :-I -->
-      </string-array>
+    </string-array>
 
-      </resources>
+</resources>

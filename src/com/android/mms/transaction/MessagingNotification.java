@@ -140,10 +140,10 @@ public class MessagingNotification {
 
     private MessagingNotification() {
     }
+
     // this is the phone number of the last contact to message us and is
     // used to find the avatar for the sender.
     private static String lastSender = "";
-
 
     public static void init(Context context) {
         // set up the intent filter for notification deleted action
@@ -350,22 +350,18 @@ public class MessagingNotification {
                     SMS_STATUS_PROJECTION, NEW_DELIVERY_SM_CONSTRAINT,
                     null, Sms.DATE);
 
-        if (cursor == null) {
+        if (cursor == null)
             return null;
-        }
 
         try {
-            if (!cursor.moveToLast()) {
-                return null;
-            }
+            if (!cursor.moveToLast())
+            return null;
 
             String address = cursor.getString(COLUMN_SMS_ADDRESS);
             long timeMillis = 3000;
 
-            Contact contact = Contact.get(address, false);
-            String name = contact.getNameAndNumber();
-
-            return new MmsSmsDeliveryInfo(context.getString(R.string.delivery_toast_body, name),
+            return new MmsSmsDeliveryInfo(String.format(
+                context.getString(R.string.delivery_toast_body), address),
                 timeMillis);
 
         } finally {
@@ -436,14 +432,22 @@ public class MessagingNotification {
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP
                 | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
+        if (MessagingPreferenceActivity.getHideSenderNameEnabled(context)) {
+            address = context.getString(R.string.hidden_sender);
+        }
         String senderInfo = buildTickerMessage(
                 context, address, null, null).toString();
         String senderInfoName = senderInfo.substring(
                 0, senderInfo.length() - 2);
+        
+        if (MessagingPreferenceActivity.getHideMessageEnabled(context)) {
+            body = context.getString(R.string.hidden_message_body);
+        }
+        
         CharSequence ticker = buildTickerMessage(
                 context, address, subject, body);
 
-        lastSender = address;    
+        lastSender = address;
 
         return new MmsSmsNotificationInfo(
                 clickIntent, body, iconResourceId, ticker, timeMillis,
@@ -512,15 +516,16 @@ public class MessagingNotification {
                     | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
             clickIntent.setType("vnd.android-dir/mms-sms");
-        } else
+        } else if (!MessagingPreferenceActivity.getHideSenderNameEnabled(context))
         {
             // If we're in here, we only have one unique thread so we should show
-            // the picture of the sender if it exists.
+            // the picture of the sender if it exists and if the user has NOT
+            // hidden the sender's name in Mms preferences.
             Drawable avatarDraw = Contact.get(lastSender, true).getAvatar(context, null);
 
             try {
                 if (avatarDraw != null) {
-                   // Create the large notification icon
+                    // Create the large notification icon
                     Bitmap avatarBit = ((BitmapDrawable)avatarDraw).getBitmap();
                     int iconSize = context.getResources().getDimensionPixelSize(android.R.dimen.notification_large_icon_height);
 
@@ -542,7 +547,7 @@ public class MessagingNotification {
                        (iconSize - iconHeight) / 2, iconSize, iconSize);
 
                     notificationbuilder.setLargeIcon(croppedAvatar);
-                    }
+                   }
             } catch (Exception e) {
                     // Something happened, but we'll just use the original icon
                     Log.v(TAG, "Failed to set bitmap for contact");
@@ -561,7 +566,6 @@ public class MessagingNotification {
         PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, clickIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT);
 
-        
         // Update the notification.
         notificationbuilder.setContentIntent(pendingIntent);
         notificationbuilder.setContentTitle(title);
@@ -598,7 +602,7 @@ public class MessagingNotification {
             notificationbuilder.setSound(TextUtils.isEmpty(ringtoneStr) ? null : Uri.parse(ringtoneStr));
         }
 
-       notificationbuilder.setDefaults(notificationdefaults);
+        notificationbuilder.setDefaults(notificationdefaults);
 
         // set up delete intent
         notificationbuilder.setDeleteIntent(PendingIntent.getBroadcast(context, 0,
