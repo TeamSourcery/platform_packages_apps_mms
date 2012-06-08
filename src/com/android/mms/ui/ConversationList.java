@@ -103,11 +103,13 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     private CharSequence mTitle;
     private SharedPreferences mPrefs;
     private Handler mHandler;
-    private boolean mNeedToMarkAsSeen;
+    private boolean mNeedToRemoveObsoleteThreads;
     private TextView mUnreadConvCount;
 
     private MenuItem mSearchItem;
     private SearchView mSearchView;
+
+    private Cursor mCursor = null;
 
     static private final String CHECKED_MESSAGE_LIMITS = "checked_message_limits";
 
@@ -249,7 +251,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
 
         DraftCache.getInstance().addOnDraftChangedListener(this);
 
-        mNeedToMarkAsSeen = true;
+        mNeedToRemoveObsoleteThreads = true;
 
         startAsyncQuery();
 
@@ -266,9 +268,11 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
         // threads, don't invalidate the cache because we're in the process of building it.
         // TODO: think of a better way to invalidate cache more surgically or based on actual
         // TODO: changes we care about
+        /*
         if (!Conversation.loadingThreads()) {
             Contact.invalidateCache();
         }
+        */
     }
 
     @Override
@@ -282,6 +286,10 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
         getListView().setChoiceMode(ListView.CHOICE_MODE_MULTIPLE_MODAL);
 
         mListAdapter.changeCursor(null);
+
+        if (mCursor != null && !mCursor.isClosed()) {
+            mCursor.close();
+        }
     }
 
     public void onDraftChanged(final long threadId, final boolean hasDraft) {
@@ -662,25 +670,26 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
 
         @Override
         protected void onQueryComplete(int token, Object cookie, Cursor cursor) {
+            mCursor = cursor;
+
             switch (token) {
             case THREAD_LIST_QUERY_TOKEN:
-                mListAdapter.changeCursor(cursor);
+                mListAdapter.changeCursor(mCursor);
                 setTitle(mTitle);
                 setProgressBarIndeterminateVisibility(false);
 
-                if (mNeedToMarkAsSeen) {
-                    mNeedToMarkAsSeen = false;
-                    Conversation.markAllConversationsAsSeen(getApplicationContext());
-
+                Conversation.markAllConversationsAsSeen(getApplicationContext());
+                if (mNeedToRemoveObsoleteThreads) {
+                    mNeedToRemoveObsoleteThreads = false;
                     // Delete any obsolete threads. Obsolete threads are threads that aren't
                     // referenced by at least one message in the pdu or sms tables. We only call
-                    // this on the first query (because of mNeedToMarkAsSeen).
+                    // this on the first query.
                     mHandler.post(mDeleteObsoleteThreadsRunnable);
                 }
                 break;
 
             case UNREAD_THREADS_QUERY_TOKEN:
-                int count = cursor.getCount();
+                int count = mCursor.getCount();
                 mUnreadConvCount.setText(count > 0 ? Integer.toString(count) : null);
                 break;
 
@@ -688,7 +697,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
                 Collection<Long> threadIds = (Collection<Long>)cookie;
                 confirmDeleteThreadDialog(new DeleteThreadListener(threadIds, mQueryHandler,
                         ConversationList.this), threadIds,
-                        cursor != null && cursor.getCount() > 0,
+                        mCursor != null && mCursor.getCount() > 0,
                         ConversationList.this);
                 break;
 

@@ -18,13 +18,6 @@
  */
 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-  <PreferenceCategory android:title="@string/pref_display_title"
-                      android:key="pref_key_display_settings">
-  	<CheckBoxPreference android:defaultValue="false"
-                      android:key="pref_key_display_fulldate"
-                      android:summary="@string/pref_summary_fulldate"
-                      android:title="@string/pref_title_fulldate" />              
-  </PreferenceCategory>
   <PreferenceCategory android:title="@string/pref_sms_storage_title"
                       android:key="pref_key_storage_settings">
 <!--
@@ -57,8 +50,7 @@
                       android:key="pref_key_sms_split_160"
                       android:summary="@string/pref_summary_sms_split_160"
                       android:title="@string/pref_title_sms_split_160" />
-    <CheckBoxPreference android:layout="?android:attr/preferenceLayoutChild"
-                      android:defaultValue="false"
+    <CheckBoxPreference android:defaultValue="false"
                       android:key="pref_key_sms_split_counter"
                       android:summary="@string/pref_summary_sms_split_counter"
                       android:dependency="pref_key_sms_split_160"
@@ -108,6 +100,20 @@
                         android:entries="@array/prefEntries_vibrateWhen"
                         android:entryValues="@array/prefValues_vibrateWhen"
                         android:dialogTitle="@string/prefDialogTitle_vibrateWhen" />
+    <com.android.mms.preferences.CustomVibrateListPreference
+                        android:key="pref_key_mms_notification_vibrate_pattern"
+                        android:dependency="pref_key_vibrateWhen"
+                        android:defaultValue=""
+                        android:title="@string/pref_title_mms_notification_vibrate_pattern"
+                        android:summary="@string/pref_summary_mms_notification_vibrate_pattern"
+                        android:entries="@array/pref_mms_notification_vibrate_pattern_entries"
+                        android:entryValues="@array/pref_mms_notification_vibrate_pattern_values"
+                        android:dialogTitle="@string/pref_title_mms_notification_vibrate_pattern" />
+    <CheckBoxPreference android:key="pref_key_mms_notification_vibrate_call"
+                        android:dependency="pref_key_enable_notifications"
+                        android:defaultValue="true"
+                        android:title="@string/pref_title_mms_notification_vibrate_call"
+                        android:summary="@string/pref_summary_mms_notification_vibrate_call" />
     <CheckBoxPreference android:defaultValue="false"
                         android:key="pref_key_notification_hidesendername"
                         android:summary="@string/pref_summary_hidesendername"
@@ -117,6 +123,26 @@
                         android:summary="@string/pref_summary_hidemessage"
                         android:title="@string/pref_title_hidemessage" /> 
   </PreferenceCategory>
+  <PreferenceCategory android:title="@string/prefs_templates_settings" >
+        <Preference
+            android:key="pref_key_templates_manage"
+            android:persistent="false"
+            android:summary="@string/pref_summary_templates_manage"
+            android:title="@string/pref_title_templates_manage" />
+
+        <CheckBoxPreference
+            android:defaultValue="false"
+            android:key="pref_key_templates_show_gesture"
+            android:summary="@string/pref_summary_templates_show_gesture"
+            android:title="@string/pref_title_templates_show_gesture" />
+
+        <ListPreference
+            android:entries="@array/pref_templates_gestures_sensitivity_entries"
+            android:entryValues="@array/pref_templates_gestures_sensitivity_values"
+            android:key="pref_key_templates_gestures_sensitivity"
+            android:title="@string/pref_title_template_gestures_sensitivity" />
+    </PreferenceCategory>
+
   <PreferenceCategory android:title="@string/pref_extra_settings">
     <CheckBoxPreference android:key="pref_key_strip_unicode"
                         android:title="@string/pref_title_strip_unicode"
@@ -128,10 +154,33 @@
                         android:summary="@string/pref_summary_enable_emojis"
                         android:dependency="pref_key_strip_unicode"
                         android:defaultValue="false" />
-    <CheckBoxPreference android:key="pref_key_emojis_quick"
-                        android:title="@string/pref_title_pref_key_emojis_quick"
-                        android:summary="@string/pref_summary_pref_key_emojis_quick"
-                        android:dependency="pref_key_enable_emojis"
+    <CheckBoxPreference android:key="pref_key_mms_full_timestamp"
+                        android:title="@string/pref_title_mms_full_timestamp"
+                        android:summary="@string/pref_summary_mms_full_timestamp"
                         android:defaultValue="false" />
+    <CheckBoxPreference android:key="pref_key_mms_use_sent_timestamp"
+                        android:title="@string/pref_title_mms_use_sent_timestamp"
+                        android:summary="@string/pref_summary_mms_use_sent_timestamp"
+                        android:defaultValue="false" />
+
+    <EditTextPreference android:key="pref_key_mms_signature"
+                        android:title="@string/pref_title_mms_signature"
+                        android:summary="@string/pref_summary_mms_signature"
+                        android:dialogTitle="@string/pref_title_mms_signature" />
+    <ListPreference android:key="pref_key_mms_signature_auto_append"
+                  android:title="@string/pref_title_mms_signature_auto_append"
+                  android:summary="@string/pref_summary_mms_signature_auto_append"
+                  android:entries="@array/pref_mms_signature_auto_append_entries"
+                  android:entryValues="@array/pref_mms_signature_auto_append_values"
+                  android:dialogTitle="@string/pref_dialogtitle_mms_signature_auto_append" />
+    
+    <CheckBoxPreference android:key="pref_key_sms_EnableMultipartSMS"
+                        android:title="@string/pref_title_sms_EnableMultipartSMS"
+                        android:summary="@string/pref_summary_sms_EnableMultipartSMS"
+                        android:defaultValue="true" />
+    <Preference android:key="pref_key_sms_SmsToMmsTextThreshold"
+                      android:dependency="pref_key_sms_EnableMultipartSMS"
+                      android:summary="@string/pref_summary_sms_SmsToMmsTextThreshold"
+                      android:title="@string/pref_title_sms_SmsToMmsTextThreshold" />
   </PreferenceCategory>
 </PreferenceScreen>

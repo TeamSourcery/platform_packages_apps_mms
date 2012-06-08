@@ -47,6 +47,8 @@ import java.text.Normalizer;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.LoaderManager;
 import android.app.ProgressDialog;
 import android.content.ActivityNotFoundException;
 import android.content.AsyncQueryHandler;
@@ -55,18 +57,27 @@ import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.CursorLoader;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.DialogInterface.OnClickListener;
+import android.content.Loader;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.database.DatabaseUtils;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SqliteWrapper;
 import android.drm.mobile1.DrmException;
 import android.drm.mobile1.DrmRawContent;
+import android.gesture.Gesture;
+import android.gesture.GestureLibrary;
+import android.gesture.GestureOverlayView;
+import android.gesture.GestureOverlayView.OnGesturePerformedListener;
+import android.gesture.Prediction;
 import android.graphics.drawable.Drawable;
 import android.media.RingtoneManager;
 import android.net.Uri;
@@ -131,6 +142,7 @@ import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.SimpleAdapter;
+import android.widget.SimpleCursorAdapter;
 import android.widget.CursorAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -157,6 +169,8 @@ import com.google.android.mms.pdu.SendReq;
 import com.google.android.mms.util.PduCache;
 import com.android.mms.model.SlideModel;
 import com.android.mms.model.SlideshowModel;
+import com.android.mms.templates.TemplateGesturesLibrary;
+import com.android.mms.templates.TemplatesProvider.Template;
 import com.android.mms.transaction.MessagingNotification;
 import com.android.mms.ui.MessageUtils.ResizeImageResultCallback;
 import com.android.mms.ui.RecipientsEditor.RecipientContextMenuInfo;
@@ -181,7 +195,8 @@ import android.text.InputFilter.LengthFilter;
  */
 public class ComposeMessageActivity extends Activity
         implements View.OnClickListener, TextView.OnEditorActionListener,
-        MessageStatusListener, Contact.UpdateListener {
+        MessageStatusListener, Contact.UpdateListener, OnGesturePerformedListener,
+        LoaderManager.LoaderCallbacks<Cursor>  {
     public static final int REQUEST_CODE_ATTACH_IMAGE     = 100;
     public static final int REQUEST_CODE_TAKE_PICTURE     = 101;
     public static final int REQUEST_CODE_ATTACH_VIDEO     = 102;
@@ -208,6 +223,7 @@ public class ComposeMessageActivity extends Activity
     private static final int MENU_CALL_RECIPIENT        = 5;
     private static final int MENU_CONVERSATION_LIST     = 6;
     private static final int MENU_DEBUG_DUMP            = 7;
+    private static final int MENU_APPEND_SIGNATURE      = 8;
 
     // Context menu ID
     private static final int MENU_VIEW_CONTACT          = 12;
@@ -234,6 +250,12 @@ public class ComposeMessageActivity extends Activity
     private static final int MENU_ADD_TEMPLATE          = 32;
     private static final int MENU_INSERT_EMOJI         = 33;
 
+    private static final int DIALOG_TEMPLATE_SELECT     = 1;
+    private static final int DIALOG_TEMPLATE_NOT_AVAILABLE = 2;
+
+    private static final int LOAD_TEMPLATE_BY_ID        = 0;
+    private static final int LOAD_TEMPLATES             = 1;
+
     private static final int RECIPIENTS_MAX_LENGTH = 312;
 
     private static final int MESSAGE_LIST_QUERY_TOKEN = 9527;
@@ -254,6 +276,8 @@ public class ComposeMessageActivity extends Activity
 
     private boolean mExitOnSent;            // Should we finish() after sending a message?
                                             // TODO: mExitOnSent is obsolete -- remove
+    private CharSequence mSignature;        // Append text at the end of all outgoing messages
+    private String mSignatureAutoAppend;    // Setting for Signature auto-append
 
     private View mTopPanel;                 // View containing the recipient and subject editors
     private View mBottomPanel;              // View containing the text editor, send button, ec.
@@ -304,6 +328,14 @@ public class ComposeMessageActivity extends Activity
     private Intent mAddContactIntent;   // Intent used to add a new contact
 
     private String mDebugRecipients;
+
+    private GestureLibrary mLibrary;
+
+    private SimpleCursorAdapter mTemplatesCursorAdapter;
+
+    private double mGestureSensitivity;
+
+    private Cursor mCursor = null;
 
     @SuppressWarnings("unused")
     public static void log(String logMsg) {
@@ -359,8 +391,10 @@ public class ComposeMessageActivity extends Activity
 
                     // Special case characters that don't get stripped by the
                     // above technique.
-                    s = s.replace("Œ", "OE");
-                    s = s.replace("œ", "oe");
+                    s = s.replace("Å’", "OE");
+                    s = s.replace("Å“", "oe");
+                    s = s.replace("Å", "L");
+                    s = s.replace("Å‚", "l");
 
                     output.append(s);
                 }
@@ -1813,12 +1847,27 @@ public class ComposeMessageActivity extends Activity
         super.onCreate(savedInstanceState);
 
         resetConfiguration(getResources().getConfiguration());
-        
+
         SharedPreferences prefs = PreferenceManager
                 .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
+        mGestureSensitivity = prefs
+                .getInt(MessagingPreferenceActivity.GESTURE_SENSITIVITY_VALUE, 3);
+        boolean showGesture = prefs.getBoolean(MessagingPreferenceActivity.SHOW_GESTURE, false);
         boolean stripUnicode = prefs.getBoolean(MessagingPreferenceActivity.STRIP_UNICODE, false);
+        mSignature = prefs.getString(MessagingPreferenceActivity.SIGNATURE, "");
+        mSignatureAutoAppend = prefs.getString(MessagingPreferenceActivity.SIGNATURE_AUTO_APPEND, "append_off");
+        mLibrary = TemplateGesturesLibrary.getStore(this);
+
+        int layout = R.layout.compose_message_activity;
+
+        GestureOverlayView gestureOverlayView = new GestureOverlayView(this);
+        View inflate = getLayoutInflater().inflate(layout, null);
+        gestureOverlayView.addView(inflate);
+        gestureOverlayView.setEventsInterceptionEnabled(true);
+        gestureOverlayView.setGestureVisible(showGesture);
+        gestureOverlayView.addOnGesturePerformedListener(this);
+        setContentView(gestureOverlayView);
         setProgressBarVisibility(false);
-        setContentView(R.layout.compose_message_activity);
 
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE |
                 WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
@@ -1920,7 +1969,6 @@ public class ComposeMessageActivity extends Activity
 
         // Let the working message know what conversation it belongs to
         mWorkingMessage.setConversation(mConversation);
-        invalidateOptionsMenu();
 
         // Show the recipients editor if we don't have a valid thread. Hide it otherwise.
         if (mConversation.getThreadId() <= 0) {
@@ -1936,6 +1984,10 @@ public class ComposeMessageActivity extends Activity
         } else {
             hideRecipientEditor();
         }
+        invalidateOptionsMenu();    // do after show/hide of recipients editor because the options
+                                    // menu depends on the recipients, which depending upon the
+                                    // visibility of the recipients editor, returns a different
+                                    // value (see getRecipients()).
 
         updateSendButtonState();
 
@@ -2186,11 +2238,18 @@ public class ComposeMessageActivity extends Activity
     protected void onStop() {
         super.onStop();
 
+		// No need to do the querying when finished this activity
+        mBackgroundQueryHandler.cancelOperation(MESSAGE_LIST_QUERY_TOKEN);
+		
         // Allow any blocked calls to update the thread's read status.
         mConversation.blockMarkAsRead(false);
 
         if (mMsgListAdapter != null) {
             mMsgListAdapter.changeCursor(null);
+        }
+
+        if (mCursor != null && !mCursor.isClosed()) {
+            mCursor.close();
         }
 
         if (mRecipientsEditor != null) {
@@ -2266,6 +2325,10 @@ public class ComposeMessageActivity extends Activity
             mTextEditor.setFocusable(false);
             mTextEditor.setHint(R.string.open_keyboard_to_compose_message);
         }
+       // Auto-append signature on compose
+        if((mSignature != null) && mSignatureAutoAppend.equals("append_compose")) {
+            appendSignature();
+      }
     }
 
     @Override
@@ -2468,6 +2531,11 @@ public class ComposeMessageActivity extends Activity
         }
     }
 
+    private void appendSignature() {
+        mSignature = "\n" + mSignature;
+        mTextEditor.append(mSignature);
+    }
+
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
         super.onPrepareOptionsMenu(menu) ;
@@ -2494,6 +2562,10 @@ public class ComposeMessageActivity extends Activity
                 .setTitle(R.string.add_attachment)
                 .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);    // add to actionbar
         }
+
+        menu.add(0, MENU_ADD_TEMPLATE, 0, R.string.template_insert)
+                .setIcon(android.R.drawable.ic_menu_add)
+                .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 
         if (isPreparedForSending()) {
             menu.add(0, MENU_SEND, 0, R.string.send).setIcon(android.R.drawable.ic_menu_send);
@@ -2523,6 +2595,10 @@ public class ComposeMessageActivity extends Activity
             menu.add(0, MENU_DISCARD, 0, R.string.discard).setIcon(android.R.drawable.ic_menu_delete);
         }
 
+	if(!mSignature.equals("")) {
+            menu.add(0, MENU_APPEND_SIGNATURE, 0, R.string.append_signature).setIcon(com.android.internal.R.drawable.ic_menu_edit);
+        } 
+
         buildAddAddressToContactMenuItem(menu);
 
         menu.add(0, MENU_PREFERENCES, 0, R.string.menu_preferences).setIcon(
@@ -2531,7 +2607,6 @@ public class ComposeMessageActivity extends Activity
         if (LogTag.DEBUG_DUMP) {
             menu.add(0, MENU_DEBUG_DUMP, 0, R.string.menu_debug_dump);
         }
-
         return true;
     }
 
@@ -2585,6 +2660,10 @@ public class ComposeMessageActivity extends Activity
                     }
                 });
                 break;
+            case MENU_APPEND_SIGNATURE:
+                // Append signature manually
+                appendSignature();
+                break;
             case MENU_CALL_RECIPIENT:
                 dialRecipient();
                 break;
@@ -2618,6 +2697,9 @@ public class ComposeMessageActivity extends Activity
                 mWorkingMessage.dump();
                 Conversation.dump();
                 LogTag.dumpInternalTables(this);
+                break;
+            case MENU_ADD_TEMPLATE:
+                startLoadingTemplates();
                 break;
         }
 
@@ -3227,12 +3309,12 @@ public class ComposeMessageActivity extends Activity
         mBottomPanel.setVisibility(View.VISIBLE);
 
         CharSequence text = mWorkingMessage.getText();
-        SharedPreferences prefs = PreferenceManager
-                .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
 
         // TextView.setTextKeepState() doesn't like null input.
         if (text != null) {
             // Restore the emojis if necessary
+            SharedPreferences prefs = PreferenceManager
+                    .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
             boolean enableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
             if (enableEmojis) {
                 mTextEditor.setTextKeepState(EmojiParser.getInstance().addEmojiSpans(text));
@@ -3242,17 +3324,6 @@ public class ComposeMessageActivity extends Activity
         } else {
             mTextEditor.setText("");
         }
-        if(prefs.getBoolean(MessagingPreferenceActivity.ENABLE_QUICK_EMOJIS, false)) {
-            ImageButton quickEmojis = (ImageButton) mBottomPanel.findViewById(R.id.add_emoji);
-            quickEmojis.setVisibility(View.VISIBLE);
-            quickEmojis.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    showEmojiDialog();
-                }
-            });
-        }
-        
     }
 
     private void drawTopPanel(boolean showSubjectEditor) {
@@ -3564,6 +3635,11 @@ public class ComposeMessageActivity extends Activity
             }
         }
 
+	// Auto-append signature on send
+        if((mSignature != null) && mSignatureAutoAppend.equals("append_send")) {
+            appendSignature();
+        }
+
         if (!mSendingMessage) {
             if (LogTag.SEVERE_WARNING) {
                 String sendingRecipients = mConversation.getRecipients().serialize();
@@ -3756,6 +3832,7 @@ public class ComposeMessageActivity extends Activity
                     mDataSetChangedListener = new MessageListAdapter.OnDataSetChangedListener() {
         public void onDataSetChanged(MessageListAdapter adapter) {
             mPossiblePendingNotification = true;
+            checkPendingNotification();
         }
 
         public void onContentChanged(MessageListAdapter adapter) {
@@ -3780,6 +3857,8 @@ public class ComposeMessageActivity extends Activity
 
         @Override
         protected void onQueryComplete(int token, Object cookie, Cursor cursor) {
+            mCursor = cursor;
+
             switch(token) {
                 case MESSAGE_LIST_QUERY_TOKEN:
                     // check consistency between the query result and 'mConversation'
@@ -3802,17 +3881,17 @@ public class ComposeMessageActivity extends Activity
                     int newSelectionPos = -1;
                     long targetMsgId = getIntent().getLongExtra("select_id", -1);
                     if (targetMsgId != -1) {
-                        cursor.moveToPosition(-1);
-                        while (cursor.moveToNext()) {
-                            long msgId = cursor.getLong(COLUMN_ID);
+                        mCursor.moveToPosition(-1);
+                        while (mCursor.moveToNext()) {
+                            long msgId = mCursor.getLong(COLUMN_ID);
                             if (msgId == targetMsgId) {
-                                newSelectionPos = cursor.getPosition();
+                                newSelectionPos = mCursor.getPosition();
                                 break;
                             }
                         }
                     }
 
-                    mMsgListAdapter.changeCursor(cursor);
+                    mMsgListAdapter.changeCursor(mCursor);
                     if (newSelectionPos != -1) {
                         mMsgListView.setSelection(newSelectionPos);
                     }
@@ -3828,7 +3907,7 @@ public class ComposeMessageActivity extends Activity
                     // mSentMessage is true).
                     // Show the recipients editor to give the user a chance to add
                     // more people before the conversation begins.
-                    if (cursor.getCount() == 0 && !isRecipientsEditorVisible() && !mSentMessage) {
+                    if (mCursor.getCount() == 0 && !isRecipientsEditorVisible() && !mSentMessage) {
                         initRecipientsEditor();
                     }
 
@@ -3847,7 +3926,7 @@ public class ComposeMessageActivity extends Activity
                             new ConversationList.DeleteThreadListener(threadIds,
                                 mBackgroundQueryHandler, ComposeMessageActivity.this),
                             threadIds,
-                            cursor != null && cursor.getCount() > 0,
+                            mCursor != null && mCursor.getCount() > 0,
                             ComposeMessageActivity.this);
                     break;
             }
@@ -4096,5 +4175,90 @@ public class ComposeMessageActivity extends Activity
             }
         }
         return null;
+    }
+
+    private void startLoadingTemplates() {
+        setProgressBarIndeterminateVisibility(true);
+        getLoaderManager().restartLoader(LOAD_TEMPLATES, null, this);
+    }
+
+    @Override
+    public void onGesturePerformed(GestureOverlayView overlay, Gesture gesture) {
+        ArrayList<Prediction> predictions = mLibrary.recognize(gesture);
+        for (Prediction prediction : predictions) {
+            if (prediction.score > mGestureSensitivity) {
+                Bundle b = new Bundle();
+                b.putLong("id", Long.parseLong(prediction.name));
+                getLoaderManager().destroyLoader(LOAD_TEMPLATE_BY_ID);
+                getLoaderManager().initLoader(LOAD_TEMPLATE_BY_ID, b, this);
+            }
+        }
+    }
+
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        if (id == LOAD_TEMPLATE_BY_ID) {
+            long rowID = args.getLong("id");
+            Uri uri = ContentUris.withAppendedId(Template.CONTENT_URI, rowID);
+            return new CursorLoader(this, uri, null, null, null, null);
+        } else {
+            return new CursorLoader(this, Template.CONTENT_URI, null, null, null, null);
+        }
+    }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+
+        if (loader.getId() == LOAD_TEMPLATE_BY_ID) {
+            if (data != null && data.getCount() > 0) {
+                data.moveToFirst();
+                String text = data.getString(data.getColumnIndex(Template.TEXT));
+                mTextEditor.append(text);
+            }
+        }else{
+            setProgressBarIndeterminateVisibility(false);
+            if(data != null && data.getCount() > 0){
+                showDialog(DIALOG_TEMPLATE_SELECT);
+                mTemplatesCursorAdapter.swapCursor(data);
+            }else{
+                showDialog(DIALOG_TEMPLATE_NOT_AVAILABLE);
+            }
+        }
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+    }
+
+    @Override
+    protected Dialog onCreateDialog(int id, Bundle args) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        switch (id) {
+            case DIALOG_TEMPLATE_NOT_AVAILABLE:
+                builder.setTitle(R.string.template_not_present_error_title);
+                builder.setMessage(R.string.template_not_present_error);
+                return builder.create();
+
+            case DIALOG_TEMPLATE_SELECT:
+                builder = new AlertDialog.Builder(this);
+                builder.setTitle(R.string.template_select);
+                mTemplatesCursorAdapter  = new SimpleCursorAdapter(this,
+                        android.R.layout.simple_list_item_1, null, new String[] {
+                        Template.TEXT
+                    }, new int[] {
+                        android.R.id.text1
+                    }, CursorAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
+                builder.setAdapter(mTemplatesCursorAdapter, new DialogInterface.OnClickListener(){
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                       Cursor c = (Cursor) mTemplatesCursorAdapter.getItem(which);
+                       String text = c.getString(c.getColumnIndex(Template.TEXT));
+                       mTextEditor.append(text);
+                    }
+
+                });
+                return builder.create();
+        }
+        return super.onCreateDialog(id, args);
     }
 }
