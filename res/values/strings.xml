@@ -859,6 +859,7 @@
 
     <!-- QM Dialog box buttons -->
     <string name="button_close">Close</string>
+    <string name="button_delete">Delete</string>
     <string name="button_view">View</string>
     <string name="button_templates">Templates</string>
 

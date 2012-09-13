@@ -112,7 +112,7 @@ public class MessagingNotification {
 
     // This must be consistent with the column constants below.
     private static final String[] SMS_STATUS_PROJECTION = new String[] {
-        Sms.THREAD_ID, Sms.DATE, Sms.ADDRESS, Sms.SUBJECT, Sms.BODY };
+        Sms.THREAD_ID, Sms.DATE, Sms.ADDRESS, Sms.SUBJECT, Sms.BODY, Sms._ID };
 
     // These must be consistent with MMS_STATUS_PROJECTION and
     // SMS_STATUS_PROJECTION.
@@ -123,6 +123,7 @@ public class MessagingNotification {
     private static final int COLUMN_SUBJECT     = 3;
     private static final int COLUMN_SUBJECT_CS  = 4;
     private static final int COLUMN_SMS_BODY    = 4;
+    private static final int COLUMN_SMS_ID 		= 5;
 
     private static final String[] SMS_THREAD_ID_PROJECTION = new String[] { Sms.THREAD_ID };
     private static final String[] MMS_THREAD_ID_PROJECTION = new String[] { Mms.THREAD_ID };
@@ -343,6 +344,7 @@ public class MessagingNotification {
         public final int mAttachmentType;
         public final String mSubject;
         public final long mThreadId;
+        public final String mMessageUri;
 
         /**
          * @param isSms true if sms, false if mms
@@ -362,7 +364,7 @@ public class MessagingNotification {
                 Intent clickIntent, String message, String subject,
                 CharSequence ticker, long timeMillis, String title,
                 Bitmap attachmentBitmap, Contact sender,
-                int attachmentType, long threadId) {
+                int attachmentType, long threadId, String messageUri) {
             mIsSms = isSms;
             mClickIntent = clickIntent;
             mMessage = message;
@@ -374,6 +376,7 @@ public class MessagingNotification {
             mSender = sender;
             mAttachmentType = attachmentType;
             mThreadId = threadId;
+            mMessageUri = messageUri;
         }
 
         public long getTime() {
@@ -496,6 +499,7 @@ public class MessagingNotification {
             arg0.writeParcelable(mAttachmentBitmap, 0);
             arg0.writeInt(mAttachmentType);
             arg0.writeLong(mThreadId);
+            arg0.writeString(mMessageUri);
         }
 
         public NotificationInfo(Parcel in) {
@@ -510,6 +514,7 @@ public class MessagingNotification {
             mSender = null;
             mAttachmentType = in.readInt();
             mThreadId = in.readLong();
+            mMessageUri = in.readString();
         }
 
         public static final Parcelable.Creator<NotificationInfo> CREATOR = new Parcelable.Creator<NotificationInfo>() {
@@ -650,6 +655,7 @@ public class MessagingNotification {
                         address,
                         messageBody, subject,
                         threadId,
+                        msgUri.toString(),
                         timeMillis,
                         attachedPicture,
                         contact,
@@ -731,6 +737,9 @@ public class MessagingNotification {
 
         try {
             while (cursor.moveToNext()) {
+            	long msgId = cursor.getLong(COLUMN_SMS_ID);
+                Uri msgUri = Sms.CONTENT_URI.buildUpon().appendPath(
+                        Long.toString(msgId)).build();
                 String address = cursor.getString(COLUMN_SMS_ADDRESS);
 
                 Contact contact = Contact.get(address, false);
@@ -752,7 +761,7 @@ public class MessagingNotification {
 
                 NotificationInfo info = getNewMessageNotificationInfo(context, true /* isSms */,
                         address, message, null /* subject */,
-                        threadId, timeMillis, null /* attachmentBitmap */,
+                        threadId, msgUri.toString(), timeMillis, null /* attachmentBitmap */,
                         contact, WorkingMessage.TEXT);
 
                 sNotificationSet.add(info);
@@ -772,6 +781,7 @@ public class MessagingNotification {
             String message,
             String subject,
             long threadId,
+            String messageUri,
             long timeMillis,
             Bitmap attachmentBitmap,
             Contact contact,
@@ -790,7 +800,7 @@ public class MessagingNotification {
 
         return new NotificationInfo(isSms,
                 clickIntent, message, subject, ticker, timeMillis,
-                senderInfoName, attachmentBitmap, contact, attachmentType, threadId);
+                senderInfoName, attachmentBitmap, contact, attachmentType, threadId, messageUri);
     }
 
     public static void cancelNotification(Context context, int notificationId) {
@@ -986,6 +996,7 @@ public class MessagingNotification {
             qmIntent.putExtra(QuickMessagePopup.SMS_FROM_NAME_EXTRA, mostRecentNotification.mSender.getName());
             qmIntent.putExtra(QuickMessagePopup.SMS_FROM_NUMBER_EXTRA, mostRecentNotification.mSender.getNumber());
             qmIntent.putExtra(QuickMessagePopup.SMS_NOTIFICATION_OBJECT_EXTRA, mostRecentNotification);
+            qmIntent.putExtra(QuickMessagePopup.SMS_MESSAGE_URI_EXTRA, mostRecentNotification.mMessageUri);
         }
 
         // Start getting the notification ready
