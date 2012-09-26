@@ -3373,6 +3373,8 @@ public class ComposeMessageActivity extends Activity
         mBottomPanel.setVisibility(View.VISIBLE);
 
         CharSequence text = mWorkingMessage.getText();
+        SharedPreferences prefs = PreferenceManager
+                .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
 
         // TextView.setTextKeepState() doesn't like null input.
         if (text != null) {
@@ -3385,10 +3387,20 @@ public class ComposeMessageActivity extends Activity
             } else {
                 mTextEditor.setTextKeepState(text);
             }
-        } else {
+         } else {
             mTextEditor.setText("");
-        }
-    }
+         }
+         if(prefs.getBoolean(MessagingPreferenceActivity.ENABLE_QUICK_EMOJIS, false)) {
+             ImageButton quickEmojis = (ImageButton) mBottomPanel.findViewById(R.id.add_emoji);
+             quickEmojis.setVisibility(View.VISIBLE);
+             quickEmojis.setOnClickListener(new View.OnClickListener() {
+                 @Override
+                 public void onClick(View v) {
+                     showEmojiDialog();
+                 }
+             });
+         }
+     }
 
     private void drawTopPanel(boolean showSubjectEditor) {
         boolean showingAttachment = mAttachmentEditor.update(mWorkingMessage);
