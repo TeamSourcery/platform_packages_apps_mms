@@ -3382,9 +3382,7 @@ public class ComposeMessageActivity extends Activity
         // TextView.setTextKeepState() doesn't like null input.
         if (text != null) {
             // Restore the emojis if necessary
-            SharedPreferences prefs = PreferenceManager
-                    .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
-            boolean enableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
+           boolean enableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
             if (enableEmojis) {
                 mTextEditor.setTextKeepState(EmojiParser.getInstance().addEmojiSpans(text));
             } else {
