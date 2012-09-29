@@ -123,7 +123,7 @@ public class MessagingNotification {
     private static final int COLUMN_SUBJECT     = 3;
     private static final int COLUMN_SUBJECT_CS  = 4;
     private static final int COLUMN_SMS_BODY    = 4;
-    private static final int COLUMN_SMS_ID 		= 5;
+    private static final int COLUMN_SMS_ID     = 5;
 
     private static final String[] SMS_THREAD_ID_PROJECTION = new String[] { Sms.THREAD_ID };
     private static final String[] MMS_THREAD_ID_PROJECTION = new String[] { Mms.THREAD_ID };
@@ -737,9 +737,9 @@ public class MessagingNotification {
 
         try {
             while (cursor.moveToNext()) {
-            	long msgId = cursor.getLong(COLUMN_SMS_ID);
+              long msgId = cursor.getLong(COLUMN_SMS_ID);
                 Uri msgUri = Sms.CONTENT_URI.buildUpon().appendPath(
-                        Long.toString(msgId)).build();
+ 	                Long.toString(msgId)).build();
                 String address = cursor.getString(COLUMN_SMS_ADDRESS);
 
                 Contact contact = Contact.get(address, false);
@@ -1117,7 +1117,7 @@ public class MessagingNotification {
         // But don't show the QuickMessage if the user is in a call or the phone is ringing
         if (qmPopupEnabled) {
             TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-            if (tm.getCallState() == TelephonyManager.CALL_STATE_IDLE) {
+            if (tm.getCallState() == TelephonyManager.CALL_STATE_IDLE && !ConversationList.mIsRunning && !ComposeMessageActivity.mIsRunning) {
                 context.startActivity(qmIntent);
             }
         }

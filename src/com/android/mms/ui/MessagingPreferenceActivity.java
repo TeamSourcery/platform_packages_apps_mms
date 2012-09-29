@@ -33,6 +33,7 @@ import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
+import android.preference.Preference.OnPreferenceChangeListener;
 import android.preference.Preference.OnPreferenceClickListener;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceCategory;
@@ -58,6 +59,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String PRIORITY                 = "pref_key_mms_priority";
     public static final String READ_REPORT_MODE         = "pref_key_mms_read_reports";
     public static final String SMS_DELIVERY_REPORT_MODE = "pref_key_sms_delivery_reports";
+    public static final String SMS_SPLIT_MESSAGE        = "pref_key_sms_split_160";
     public static final String SMS_SPLIT_COUNTER        = "pref_key_sms_split_counter";
     public static final String NOTIFICATION_ENABLED     = "pref_key_enable_notifications";
     public static final String NOTIFICATION_VIBRATE     = "pref_key_vibrate";
@@ -69,15 +71,16 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String MANAGE_TEMPLATES         = "pref_key_templates_manage";
     public static final String SHOW_GESTURE             = "pref_key_templates_show_gesture";
     public static final String GESTURE_SENSITIVITY      = "pref_key_templates_gestures_sensitivity";
-    public static final String GESTURE_SENSITIVITY_VALUE = "pref_key_templates_gestures_sensitivity_value";
+    public static final String GESTURE_SENSITIVITY_VALUE= "pref_key_templates_gestures_sensitivity_value";
+    public static final String STRIP_UNICODE            = "pref_key_strip_unicode";
+    public static final String ENABLE_EMOJIS            = "pref_key_enable_emojis";
+    public static final String ENABLE_QUICK_EMOJIS      = "pref_key_emojis_quick";
+    public static final String FULL_TIMESTAMP           = "pref_key_mms_full_timestamp";
+    public static final String SENT_TIMESTAMP           = "pref_key_mms_use_sent_timestamp";
     public static final String NOTIFICATION_VIBRATE_PATTERN = "pref_key_mms_notification_vibrate_pattern";
     public static final String NOTIFICATION_VIBRATE_PATTERN_CUSTOM = "pref_key_mms_notification_vibrate_pattern_custom";
     public static final String NOTIFICATION_VIBRATE_CALL ="pre_key_mms_notification_vibrate_call";
-    public static final String STRIP_UNICODE             = "pref_key_strip_unicode";
-    public static final String FULL_TIMESTAMP            = "pref_key_mms_full_timestamp";
-    public static final String SENT_TIMESTAMP            = "pref_key_mms_use_sent_timestamp";
-    public static final String ENABLE_EMOJIS             = "pref_key_enable_emojis";
-    public static final String ENABLE_QUICK_EMOJIS      = "pref_key_emojis_quick";
+    public static final String INPUT_TYPE               = "pref_key_mms_input_type";
 
     // QuickMessage
     public static final String QUICKMESSAGE_ENABLED      = "pref_key_quickmessage";
@@ -96,6 +99,8 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private Preference mMmsReadReportPref;
     private Preference mManageSimPref;
     private Preference mClearHistoryPref;
+    private CheckBoxPreference mEnableMultipartSMS;
+    private Preference mSmsToMmsTextThreshold;
     private ListPreference mVibrateWhenPref;
     private CheckBoxPreference mEnableNotificationsPref;
     private Recycler mSmsRecycler;
@@ -147,6 +152,9 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         mVibrateWhenPref = (ListPreference) findPreference(NOTIFICATION_VIBRATE_WHEN);
         mManageTemplate = findPreference(MANAGE_TEMPLATES);
         mGestureSensitivity = (ListPreference) findPreference(GESTURE_SENSITIVITY);
+
+        mEnableMultipartSMS = (CheckBoxPreference)findPreference("pref_key_sms_EnableMultipartSMS");
+        mSmsToMmsTextThreshold = findPreference("pref_key_sms_SmsToMmsTextThreshold");
 
         // QuickMessage
         mEnableQuickMessagePref = (CheckBoxPreference) findPreference(QUICKMESSAGE_ENABLED);
@@ -220,6 +228,9 @@ public class MessagingPreferenceActivity extends PreferenceActivity
             }
         }
 
+        mEnableMultipartSMS.setChecked(!MmsConfig.getMultipartSmsEnabled());
+        mSmsToMmsTextThreshold.setDefaultValue(MmsConfig.getSmsToMmsTextThreshold()-1);
+
         setEnabledNotificationsPref();
 
         // QuickMessage
@@ -270,6 +281,9 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         setSmsDisplayLimit();
         setMmsDisplayLimit();
 
+        // Fix up the sms to mms treshold
+        setSmsToMmsTextThreshold();
+
         adjustVibrateSummary(mVibrateWhenPref.getValue());
     }
 
@@ -315,6 +329,12 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                         mMmsRecycler.getMessageLimit(this)));
     }
 
+    private void setSmsToMmsTextThreshold() {
+        mSmsToMmsTextThreshold.setSummary(
+                getString(R.string.pref_summary_sms_SmsToMmsTextThreshold,
+                        MmsConfig.getSmsToMmsTextThreshold()-1));
+    }
+
     public boolean onCreateOptionsMenu(Menu menu) {
         super.onCreateOptionsMenu(menu);
         menu.clear();
@@ -356,18 +376,24 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                     mMmsRecycler.getMessageMinLimit(),
                     mMmsRecycler.getMessageMaxLimit(),
                     R.string.pref_title_mms_delete).show();
-
+        } else if (preference == mSmsToMmsTextThreshold) {
+            new NumberPickerDialog(this,
+                    mSmsToMmsTextThresholdListener,
+                    MmsConfig.getSmsToMmsTextThreshold()-1,
+                    MmsConfig.getSmsToMmsTextThresholdMin()-1,
+                    MmsConfig.getSmsToMmsTextThresholdMax()-1,
+                    R.string.pref_title_sms_SmsToMmsTextThreshold).show();
         } else if (preference == mManageSimPref) {
             startActivity(new Intent(this, ManageSimMessages.class));
-
         } else if (preference == mClearHistoryPref) {
             showDialog(CONFIRM_CLEAR_SEARCH_HISTORY_DIALOG);
             return true;
-
         } else if (preference == mEnableNotificationsPref) {
             // Update the actual "enable notifications" value that is stored in secure settings.
             enableNotifications(mEnableNotificationsPref.isChecked(), this);
-
+        } else if (preference == mEnableMultipartSMS) {
+            //should be false when the checkbox is checked
+            MmsConfig.setEnableMultipartSMS(!mEnableMultipartSMS.isChecked());
         } else if (preference == mEnableQuickMessagePref) {
             // Update the actual "enable quickmessage" value that is stored in secure settings.
             enableQuickMessage(mEnableQuickMessagePref.isChecked(), this);
@@ -388,7 +414,6 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         return super.onPreferenceTreeClick(preferenceScreen, preference);
     }
 
-
     NumberPickerDialog.OnNumberSetListener mSmsLimitListener =
         new NumberPickerDialog.OnNumberSetListener() {
             public void onNumberSet(int limit) {
@@ -404,6 +429,18 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                 setMmsDisplayLimit();
             }
     };
+
+    NumberPickerDialog.OnNumberSetListener mSmsToMmsTextThresholdListener =
+            new NumberPickerDialog.OnNumberSetListener() {
+                public void onNumberSet(int limit) {
+                    SharedPreferences.Editor editPrefs =
+                            PreferenceManager.getDefaultSharedPreferences(MessagingPreferenceActivity.this).edit();
+                    editPrefs.putInt("pref_key_sms_SmsToMmsTextThreshold", limit);
+                    editPrefs.apply();
+                    MmsConfig.setSmsToMmsTextThreshold(limit+1);
+                    setSmsToMmsTextThreshold();
+                }
+        };
 
     @Override
     protected Dialog onCreateDialog(int id) {
@@ -499,7 +536,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static boolean getQmDarkThemeEnabled(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         boolean qmDarkThemeEnabled =
-            prefs.getBoolean(MessagingPreferenceActivity.QM_DARK_THEME_ENABLED, false);
+            prefs.getBoolean(MessagingPreferenceActivity.QM_DARK_THEME_ENABLED, true);
         return qmDarkThemeEnabled;
     }
 

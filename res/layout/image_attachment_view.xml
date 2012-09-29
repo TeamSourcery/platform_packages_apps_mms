@@ -44,7 +44,7 @@
             style="?android:attr/buttonStyleSmall"
             android:layout_width="100dip"
             android:layout_height="45dip"
-             android:textColor="@color/button_text"
+            android:textColor="@color/button_text"
             android:text="@string/view" />
 
         <Button

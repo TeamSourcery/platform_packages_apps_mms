@@ -57,7 +57,7 @@ public class QuickMessage {
     }
 
     public String getMessageUri() {
-    	return mMessageUri;
+        return mMessageUri;
     }
 
     public String getMessageBody() {

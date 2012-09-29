@@ -209,7 +209,7 @@
         <receiver android:name=".transaction.MmsSystemPushMsgReceiver"
                   android:permission="android.permission.MMS_PUSH">
                   <intent-filter>
-                       <action android:name="android.intent.action.MMS_PUSH" />
+                      <action android:name="android.intent.action.MMS_PUSH" />
                   </intent-filter>
         </receiver>
 
@@ -347,6 +347,26 @@
             android:theme="@style/MmsHoloTheme"
             android:label="@string/template_new_title">
         </activity>
+        <activity
+            android:name=".themes.Themes"
+            android:theme="@style/MmsHoloTheme"
+            android:label="@string/themes" >
+        </activity>
+        <activity
+            android:name=".themes.ThemesConversationList"
+            android:theme="@style/MmsHoloTheme"
+            android:label="@string/themes_conv_list_title" >
+        </activity>
+        <activity
+            android:name=".themes.ThemesMessageList"
+            android:theme="@style/MmsHoloTheme"
+            android:label="@string/themes_msg_list_title" >
+        </activity>
+        <activity
+            android:name=".themes.ThemesWidgets"
+            android:theme="@style/MmsHoloTheme"
+            android:label="@string/themes_widget_title" >
+        </activity>
         <provider
             android:name=".templates.TemplatesProvider"
             android:authorities="com.android.cm.mms" />
@@ -369,5 +389,6 @@
 
         <receiver android:name=".quickmessage.ClearAllReceiver" />
 
-        </application>
+    </application>
+
 </manifest>

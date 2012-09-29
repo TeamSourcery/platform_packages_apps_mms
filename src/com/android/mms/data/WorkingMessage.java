@@ -469,7 +469,7 @@ public class WorkingMessage {
         mStatusListener.onAttachmentChanged();  // have to call whether succeeded or failed,
                                                 // because a replace that fails, removes the slide
 
-        if (!append && mAttachmentType == TEXT && type == TEXT) {
+         if (!append && mAttachmentType == TEXT && type == TEXT) {
             int[] params = SmsMessage.calculateLength(getText(), false);
             /* SmsMessage.calculateLength returns an int[4] with:
              *   int[0] being the number of SMS's required,

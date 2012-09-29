@@ -100,6 +100,7 @@ import android.telephony.SmsMessage;
 import android.content.ClipboardManager;
 import android.text.Editable;
 import android.text.InputFilter;
+import android.text.InputType;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
@@ -121,13 +122,14 @@ import android.view.WindowManager;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.View.OnCreateContextMenuListener;
 import android.view.View.OnKeyListener;
+import android.view.inputmethod.InputMethod;
 import android.view.inputmethod.InputMethodManager;
 import android.webkit.MimeTypeMap;
 import android.widget.AdapterView;
-import android.widget.CursorAdapter;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.Button;
+import android.widget.CursorAdapter;
 import android.widget.EditText;
 import android.widget.GridView;
 import android.widget.ImageButton;
@@ -164,13 +166,15 @@ import com.android.mms.model.SlideModel;
 import com.android.mms.model.SlideshowModel;
 import com.android.mms.templates.TemplateGesturesLibrary;
 import com.android.mms.templates.TemplatesProvider.Template;
+import com.android.mms.themes.Themes;
 import com.android.mms.transaction.MessagingNotification;
+import com.android.mms.ui.ColorFilterMaker;
 import com.android.mms.ui.MessageListView.OnSizeChangedListener;
 import com.android.mms.ui.MessageUtils.ResizeImageResultCallback;
 import com.android.mms.ui.RecipientsEditor.RecipientContextMenuInfo;
 import com.android.mms.util.AddressUtils;
-import com.android.mms.util.PhoneNumberFormatter;
 import com.android.mms.util.EmojiParser;
+import com.android.mms.util.PhoneNumberFormatter;
 import com.android.mms.util.SendingProgressTokenManager;
 import com.android.mms.util.SmileyParser;
 
@@ -241,6 +245,7 @@ public class ComposeMessageActivity extends Activity
     private static final int MENU_UNLOCK_MESSAGE        = 29;
     private static final int MENU_SAVE_RINGTONE         = 30;
     private static final int MENU_PREFERENCES           = 31;
+
     private static final int MENU_ADD_TEMPLATE          = 32;
     private static final int MENU_INSERT_EMOJI         = 33;
 
@@ -298,7 +303,8 @@ public class ComposeMessageActivity extends Activity
     private RecipientsEditor mRecipientsEditor;  // UI control for editing recipients
     private ImageButton mRecipientsPicker;       // UI control for recipients picker
 
-    private boolean mIsKeyboardOpen;             // Whether the hardware keyboard is visible
+    private boolean mIsKeyboardOpen;             // Whether any keyboard is open
+    private boolean mIsHardKeyboardOpen;         // Whether the hard keyboard is open
     private boolean mIsLandscape;                // Whether we're in landscape mode
 
     private boolean mPossiblePendingNotification;   // If the message list has changed, we may have
@@ -319,6 +325,7 @@ public class ComposeMessageActivity extends Activity
     private AlertDialog mSmileyDialog;
     private AlertDialog mEmojiDialog;
     private View mEmojiView;
+    private ProgressDialog mProgressDialog;
 
     private boolean mWaitingForSubActivity;
     private int mLastRecipientCount;            // Used for warning the user on too many recipients.
@@ -350,7 +357,13 @@ public class ComposeMessageActivity extends Activity
     /**
      * Whether this activity is currently running (i.e. not paused)
      */
-    private boolean mIsRunning;
+    public static boolean mIsRunning;
+
+    // signature
+    private String mSignature;
+    private SharedPreferences sp;
+
+    private int inputMethod;
 
     @SuppressWarnings("unused")
     public static void log(String logMsg) {
@@ -702,9 +715,9 @@ public class ComposeMessageActivity extends Activity
             // The provider doesn't support multi-part sms's so as soon as the user types
             // an sms longer than one segment, we have to turn the message into an mms.
             mWorkingMessage.setLengthRequiresMms(msgCount > 1, true);
-         } else {
-             int threshold = MmsConfig.getSmsToMmsTextThreshold();
-             mWorkingMessage.setLengthRequiresMms(threshold > 0 && msgCount > threshold, true);
+        } else {
+            int threshold = MmsConfig.getSmsToMmsTextThreshold();
+            mWorkingMessage.setLengthRequiresMms(threshold > 0 && msgCount > threshold, true);
         }
 
         // Show the counter only if:
@@ -1543,7 +1556,7 @@ public class ComposeMessageActivity extends Activity
             if (DrmUtils.isDrmType(type)) {
                 // All parts (but there's probably only a single one) have to be successful
                 // for a valid result.
-                result &= copyPart(part, Long.toHexString(msgId));
+                result &= copyPart(part, getString(R.string.save_ringtone_filename_fallback));
             }
         }
         return result;
@@ -1650,7 +1663,7 @@ public class ComposeMessageActivity extends Activity
             PduPart part = body.getPart(i);
 
             // all parts have to be successful for a valid result.
-            result &= copyPart(part, Long.toHexString(msgId));
+            result &= copyPart(part, getString(R.string.copy_to_sdcard_filename_fallback));
         }
         return result;
     }
@@ -1724,7 +1737,17 @@ public class ComposeMessageActivity extends Activity
                     return false;
                 }
 
-                fout = new FileOutputStream(file);
+                try {
+                    fout = new FileOutputStream(file);
+                } catch (IOException e) {
+                    Log.e(TAG, "IOException caught while opening output stream", e);
+                    if (fallback.equals(fileName)) {
+                        return false;
+                    }
+                    fileName = fallback;
+                    file = getUniqueDestination(dir + fileName, extension);
+                    fout = new FileOutputStream(file);
+                }
 
                 byte[] buffer = new byte[8000];
                 int size = 0;
@@ -1966,6 +1989,7 @@ public class ComposeMessageActivity extends Activity
                 .getInt(MessagingPreferenceActivity.GESTURE_SENSITIVITY_VALUE, 3);
         boolean showGesture = prefs.getBoolean(MessagingPreferenceActivity.SHOW_GESTURE, false);
         boolean stripUnicode = prefs.getBoolean(MessagingPreferenceActivity.STRIP_UNICODE, false);
+        inputMethod = Integer.parseInt(prefs.getString(MessagingPreferenceActivity.INPUT_TYPE, Integer.toString(InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE)));
 
         mLibrary = TemplateGesturesLibrary.getStore(this);
 
@@ -2336,6 +2360,15 @@ public class ComposeMessageActivity extends Activity
 
         mIsRunning = true;
         updateThreadIdIfRunning();
+        SharedPreferences prefs = PreferenceManager
+                .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
+        inputMethod = Integer.parseInt(prefs.getString(MessagingPreferenceActivity.INPUT_TYPE, Integer.toString(InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE)));
+        Log.d("MMS Input Type", Integer.toString(inputMethod));
+        mTextEditor.setInputType(InputType.TYPE_CLASS_TEXT|
+                                inputMethod|
+                                InputType.TYPE_TEXT_FLAG_AUTO_CORRECT|
+                                InputType.TYPE_TEXT_FLAG_CAP_SENTENCES|
+                                InputType.TYPE_TEXT_FLAG_MULTI_LINE);
     }
 
     @Override
@@ -2418,7 +2451,8 @@ public class ComposeMessageActivity extends Activity
 
     // returns true if landscape/portrait configuration has changed
     private boolean resetConfiguration(Configuration config) {
-        mIsKeyboardOpen = config.keyboardHidden == KEYBOARDHIDDEN_NO;
+        mIsKeyboardOpen = config.keyboardHidden == KEYBOARDHIDDEN_NO; //might need to be changed seeing as the comment describes it as the hard keyboard being open
+        mIsHardKeyboardOpen = config.hardKeyboardHidden == KEYBOARDHIDDEN_NO;
         boolean isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE;
         if (mIsLandscape != isLandscape) {
             mIsLandscape = isLandscape;
@@ -3382,26 +3416,26 @@ public class ComposeMessageActivity extends Activity
         // TextView.setTextKeepState() doesn't like null input.
         if (text != null) {
             // Restore the emojis if necessary
-           boolean enableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
+            boolean enableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
             if (enableEmojis) {
                 mTextEditor.setTextKeepState(EmojiParser.getInstance().addEmojiSpans(text));
             } else {
                 mTextEditor.setTextKeepState(text);
             }
-         } else {
+        } else {
             mTextEditor.setText("");
-         }
-         if(prefs.getBoolean(MessagingPreferenceActivity.ENABLE_QUICK_EMOJIS, false)) {
+        }
+        if(prefs.getBoolean(MessagingPreferenceActivity.ENABLE_QUICK_EMOJIS, false)) {
              ImageButton quickEmojis = (ImageButton) mBottomPanel.findViewById(R.id.add_emoji);
              quickEmojis.setVisibility(View.VISIBLE);
              quickEmojis.setOnClickListener(new View.OnClickListener() {
                  @Override
                  public void onClick(View v) {
                      showEmojiDialog();
-                 }
-             });
-         }
-     }
+                }
+            });
+        }
+    }
 
     private void drawTopPanel(boolean showSubjectEditor) {
         boolean showingAttachment = mAttachmentEditor.update(mWorkingMessage);
@@ -3445,17 +3479,23 @@ public class ComposeMessageActivity extends Activity
     @Override
     public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
         if (event != null) {
-            // if shift key is down, then we want to insert the '\n' char in the TextView;
-            // otherwise, the default action is to send the message.
-            if (!event.isShiftPressed()) {
+            boolean sendNow;
+            if(!mIsHardKeyboardOpen && inputMethod == InputType.TYPE_TEXT_VARIATION_LONG_MESSAGE){
+                //if the physical keyboard is not open and if the user has selected enter
+                //for a new line the shift key must be pressed to send
+                sendNow = event.isShiftPressed();
+            }else{
+                //otherwise enter sends and shift must be pressed for a new line
+                sendNow = !event.isShiftPressed();
+            }
+            if (sendNow) {
                 if (isPreparedForSending()) {
                     confirmSendMessageIfNeeded();
                 }
                 return true;
             }
-            return false;
+        return false;
         }
-
         if (isPreparedForSending()) {
             confirmSendMessageIfNeeded();
         }
@@ -3757,6 +3797,12 @@ public class ComposeMessageActivity extends Activity
             // send can change the recipients. Make sure we remove the listeners first and then add
             // them back once the recipient list has settled.
             removeRecipientsListeners();
+
+            // add signature if set.
+            sp = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+            mSignature = sp.getString(Themes.PREF_SIGNATURE, "");
+            mSignature = "\n" + mSignature;
+            mWorkingMessage.setText(mWorkingMessage.getText() + mSignature);
 
             mWorkingMessage.send(mDebugRecipients);
 
@@ -4288,7 +4334,6 @@ public class ComposeMessageActivity extends Activity
 
             mSmileyDialog = b.create();
         }
-
         mSmileyDialog.show();
     }
 
@@ -4355,7 +4400,6 @@ public class ComposeMessageActivity extends Activity
 
         mEmojiDialog.show();
     }
-
     @Override
     public void onUpdate(final Contact updated) {
         // Using an existing handler for the post, rather than conjuring up a new one.
@@ -4440,6 +4484,7 @@ public class ComposeMessageActivity extends Activity
             if (prediction.score > mGestureSensitivity) {
                 Bundle b = new Bundle();
                 b.putLong("id", Long.parseLong(prediction.name));
+                getLoaderManager().destroyLoader(LOAD_TEMPLATE_BY_ID);
                 getLoaderManager().initLoader(LOAD_TEMPLATE_BY_ID, b, this);
             }
         }

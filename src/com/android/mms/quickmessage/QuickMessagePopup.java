@@ -84,6 +84,7 @@ import com.android.mms.data.ContactList;
 import com.android.mms.data.Conversation;
 import com.android.mms.data.Conversation.ConversationQueryHandler;
 import com.android.mms.templates.TemplatesProvider.Template;
+import com.android.mms.themes.ThemesMessageList;
 import com.android.mms.transaction.MessagingNotification;
 import com.android.mms.transaction.MessagingNotification.NotificationInfo;
 import com.android.mms.transaction.SmsMessageSender;
@@ -119,7 +120,7 @@ public class QuickMessagePopup extends Activity implements
     public static final String SMS_NOTIFICATION_OBJECT_EXTRA =
             "com.android.mms.NOTIFICATION_OBJECT";
     public static final String SMS_MESSAGE_URI_EXTRA =
-	    "com.android.mms.SMS_MESSAGE_URI";
+       "com.android.mms.SMS_MESSAGE_URI";
 
     // Templates support
     private static final int DIALOG_TEMPLATE_SELECT        = 1;
@@ -166,12 +167,12 @@ public class QuickMessagePopup extends Activity implements
     private AlertDialog mSmileyDialog;
     private AlertDialog mEmojiDialog;
     private View mEmojiView;
-    
+
     private static final int MESSAGE_LIST_QUERY_TOKEN = 9527;
     private static final int MESSAGE_LIST_QUERY_AFTER_DELETE_TOKEN = 9528;
-
+ 
     private static final int DELETE_MESSAGE_TOKEN  = 9700;
-    
+ 
     private BackgroundQueryHandler cqh; 
 
     @Override
@@ -196,7 +197,7 @@ public class QuickMessagePopup extends Activity implements
         // Set the window features and layout
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.dialog_quickmessage);
-        
+
         cqh = new BackgroundQueryHandler(getContentResolver());
 
         // Turn on the Options Menu
@@ -218,11 +219,10 @@ public class QuickMessagePopup extends Activity implements
 
         // Set the theme color on the pager arrow
         if (mDarkTheme) {
-            mQmPagerArrow.setBackgroundColor(0xff1e1e1e); // dark theme
+            mQmPagerArrow.setBackgroundColor(0xff040404); // dark theme
         } else {
-            mQmPagerArrow.setBackgroundColor(0xfff3f3f3); // light theme
+            mQmPagerArrow.setBackgroundColor(0xffefefef); // light theme
         }
-
         // ViewPager Support
         mPagerAdapter = new MessagePagerAdapter();
         mMessagePager = (ViewPager) findViewById(R.id.message_pager);
@@ -254,16 +254,16 @@ public class QuickMessagePopup extends Activity implements
             }
         });
 
-	// Delete button
-        mDeleteButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                int numMessages = mMessageList.size();
-                QuickMessage qm = mMessageList.get(mCurrentPage);
-                if (qm != null) {
-                    DeleteMessageListener l = new DeleteMessageListener(qm.getMessageUri(), qm, numMessages);
-                    confirmDeleteDialog(l, false);
-                    
+ // Delete button
+       mDeleteButton.setOnClickListener(new OnClickListener() {
+           @Override
+           public void onClick(View v) {
+                 int numMessages = mMessageList.size();
+                 QuickMessage qm = mMessageList.get(mCurrentPage);
+                 if (qm != null) {
+                     DeleteMessageListener l = new DeleteMessageListener(qm.getMessageUri(), qm, numMessages);
+                     confirmDeleteDialog(l, false);
+                     
                 }
             }
         });
@@ -429,6 +429,13 @@ public class QuickMessagePopup extends Activity implements
             // Make sure the counter is accurate
             updateMessageCounter();
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        Log.d("CDA", "onBackPressed Called");
+        clearNotification(false);
+        finish();
     }
 
     @Override
@@ -895,7 +902,8 @@ public class QuickMessagePopup extends Activity implements
 
         if (!TextUtils.isEmpty(message)) {
             SmileyParser parser = SmileyParser.getInstance();
-            CharSequence smileyBody = parser.addSmileySpans(message);
+            int recv = prefs.getInt(ThemesMessageList.PREF_RECV_SMILEY, 0xff33b5e5);
+            CharSequence smileyBody = parser.addSmileySpans(message, recv);
             if (enableEmojis) {
                 EmojiParser emojiParser = EmojiParser.getInstance();
                 smileyBody = emojiParser.addEmojiSpans(smileyBody);
