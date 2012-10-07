@@ -60,7 +60,7 @@
     <!-- New Background colors from layouts to make theme chooser apk easier to theme -->
     <color name="background">#ff000000</color>
     <color name="darkgray_backgrounds">#ff111111</color>
-    <color name="dividers">#eeeeee</color>
+    <color name="dividers">#ff202020</color>
     <color name="transparent">#00000000</color>
 
     <!-- Quick messaging colors -->
