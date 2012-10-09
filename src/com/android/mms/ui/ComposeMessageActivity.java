@@ -3801,9 +3801,10 @@ public class ComposeMessageActivity extends Activity
             // add signature if set.
             sp = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
             mSignature = sp.getString(Themes.PREF_SIGNATURE, "");
-            mSignature = "\n" + mSignature;
-            mWorkingMessage.setText(mWorkingMessage.getText() + mSignature);
-
+            if (!mSignature.isEmpty()) {
+                 mSignature = "\n" + mSignature;
+                 mWorkingMessage.setText(mWorkingMessage.getText() + mSignature);
+            }
             mWorkingMessage.send(mDebugRecipients);
 
             mSentMessage = true;
@@ -4283,8 +4284,8 @@ public class ComposeMessageActivity extends Activity
                 if (!added) {
                     HashMap<String, Object> entry = new HashMap<String, Object>();
 
-                    entry. put("icon", icons[i]);
-                    entry. put("name", names[i]);
+                    entry.put("icon", icons[i]);
+                    entry.put("name", names[i]);
                     entry.put("text", texts[i]);
 
                     entries.add(entry);
@@ -4323,10 +4324,17 @@ public class ComposeMessageActivity extends Activity
 
                     String smiley = (String)item.get("text");
                     if (mSubjectTextEditor != null && mSubjectTextEditor.hasFocus()) {
-                        mSubjectTextEditor.append(smiley);
+                        mToInsert = mSubjectTextEditor;
                     } else {
-                        mTextEditor.append(smiley);
+                       mToInsert = mTextEditor;
                     }
+
+                    // Insert the smiley text at current cursor position in editText
+ 	            // math funcs deal with text selected in either direction
+                    //
+                    int start = mToInsert.getSelectionStart();
+                    int end = mToInsert.getSelectionEnd();
+                    mToInsert.getText().replace(Math.min(start, end), Math.max(start, end), smiley);
 
                     dialog.dismiss();
                 }
@@ -4363,11 +4371,19 @@ public class ComposeMessageActivity extends Activity
                         long id) {
                     // We use the new unified Unicode 6.1 emoji code points
                     CharSequence emoji = EmojiParser.getInstance().addEmojiSpans(EmojiParser.mEmojiTexts[position]);
+                    EditText mToInsert;
+
+                    // tag edit text to insert to
                     if (mSubjectTextEditor != null && mSubjectTextEditor.hasFocus()) {
-                        mSubjectTextEditor.append(emoji);
+                        mToInsert = mSubjectTextEditor;
                     } else {
-                        mTextEditor.append(emoji);
+                        mToInsert = mTextEditor;
                     }
+                    // insert the emoji at the cursor location or replace selected
+                    int start = mToInsert.getSelectionStart();
+ 	            int end = mToInsert.getSelectionEnd();
+ 	            mToInsert.getText().replace(Math.min(start, end), Math.max(start, end), emoji);
+         
                     mEmojiDialog.dismiss();
                     return true;
                 }
@@ -4376,11 +4392,21 @@ public class ComposeMessageActivity extends Activity
             button.setOnClickListener(new android.view.View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    EditText mToInsert;
+
+ 	            // tag edit text to insert to
                     if (mSubjectTextEditor != null && mSubjectTextEditor.hasFocus()) {
-                        mSubjectTextEditor.append(editText.getText());
+                        mToInsert = mSubjectTextEditor;
                     } else {
-                        mTextEditor.append(editText.getText());
+                        mToInsert = mTextEditor;
                     }
+
+                    // insert the emoji at the cursor location or replace selected
+                    int start = mToInsert.getSelectionStart();
+                    int end = mToInsert.getSelectionEnd();
+                    mToInsert.getText().replace(Math.min(start, end), Math.max(start, end),
+                             editText.getText());
+
                     mEmojiDialog.dismiss();
                 }
             });
@@ -4507,8 +4533,12 @@ public class ComposeMessageActivity extends Activity
         if (loader.getId() == LOAD_TEMPLATE_BY_ID) {
             if (data != null && data.getCount() > 0) {
                 data.moveToFirst();
+                // insert template text from gesture at cursor
                 String text = data.getString(data.getColumnIndex(Template.TEXT));
-                mTextEditor.append(text);
+                int start = mTextEditor.getSelectionStart();
+                int end = mTextEditor.getSelectionEnd();
+                mTextEditor.getText().replace(Math.min(start, end),
+                        Math.max(start, end), text);
             }
         }else{
             setProgressBarIndeterminateVisibility(false);
@@ -4548,7 +4578,12 @@ public class ComposeMessageActivity extends Activity
                     public void onClick(DialogInterface dialog, int which) {
                        Cursor c = (Cursor) mTemplatesCursorAdapter.getItem(which);
                        String text = c.getString(c.getColumnIndex(Template.TEXT));
-                       mTextEditor.append(text);
+                      
+                       // insert selected template text at the cursor location or replace selected
+                       int start = mTextEditor.getSelectionStart();
+                       int end = mTextEditor.getSelectionEnd();
+                       mTextEditor.getText().replace(Math.min(start, end),
+                              Math.max(start, end), text);
                     }
 
                 });
