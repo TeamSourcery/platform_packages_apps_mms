@@ -60,7 +60,7 @@
                 android:minHeight="@dimen/avatar_width_height"
                 android:orientation="vertical" >
 
-               <TextView android:id="@+id/sender_view"
+                <TextView android:id="@+id/sender_view"
                     android:autoLink="all"
                     android:paddingLeft="@dimen/message_item_text_padding_left_right"
                     android:paddingRight="@dimen/message_item_text_padding_left_right"
@@ -69,7 +69,7 @@
                     android:layout_height="wrap_content"
                     android:linksClickable="false"
                     android:textAppearance="?android:attr/textAppearanceSmall"
-                    android:textColor="#ff000000"
+                    android:textColor="@color/message_recieved"
                     android:textStyle="bold"
                     android:textSize="12sp" />
 

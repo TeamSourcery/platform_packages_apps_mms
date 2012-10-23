@@ -42,11 +42,11 @@ import android.provider.ContactsContract.Profile;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.text.InputFilter;
+import android.text.InputFilter.LengthFilter;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
-import android.text.InputFilter.LengthFilter;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -60,6 +60,8 @@ import android.view.Window;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.Button;
 import android.widget.CursorAdapter;
 import android.widget.EditText;
@@ -71,8 +73,6 @@ import android.widget.QuickContactBadge;
 import android.widget.SimpleAdapter;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
-import android.widget.AdapterView.OnItemClickListener;
-import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.TextView.OnEditorActionListener;
 import android.widget.Toast;
 
@@ -84,7 +84,6 @@ import com.android.mms.data.ContactList;
 import com.android.mms.data.Conversation;
 import com.android.mms.data.Conversation.ConversationQueryHandler;
 import com.android.mms.templates.TemplatesProvider.Template;
-import com.android.mms.themes.ThemesMessageList;
 import com.android.mms.transaction.MessagingNotification;
 import com.android.mms.transaction.MessagingNotification.NotificationInfo;
 import com.android.mms.transaction.SmsMessageSender;
@@ -120,7 +119,7 @@ public class QuickMessagePopup extends Activity implements
     public static final String SMS_NOTIFICATION_OBJECT_EXTRA =
             "com.android.mms.NOTIFICATION_OBJECT";
     public static final String SMS_MESSAGE_URI_EXTRA =
-       "com.android.mms.SMS_MESSAGE_URI";
+            "com.android.mms.SMS_MESSAGE_URI";
 
     // Templates support
     private static final int DIALOG_TEMPLATE_SELECT        = 1;
@@ -159,9 +158,9 @@ public class QuickMessagePopup extends Activity implements
     private MessagePagerAdapter mPagerAdapter;
 
     // Options menu items
-    private static final int MENU_INSERT_SMILEY         = 1;
-    private static final int MENU_INSERT_EMOJI          = 3;
-    private static final int MENU_ADD_TEMPLATE          = 2;
+    private static final int MENU_INSERT_SMILEY = 1;
+    private static final int MENU_INSERT_EMOJI = 3;
+    private static final int MENU_ADD_TEMPLATE = 2;
 
     // Smiley and Emoji support
     private AlertDialog mSmileyDialog;
@@ -172,7 +171,7 @@ public class QuickMessagePopup extends Activity implements
     private static final int MESSAGE_LIST_QUERY_AFTER_DELETE_TOKEN = 9528;
  
     private static final int DELETE_MESSAGE_TOKEN  = 9700;
- 
+
     private BackgroundQueryHandler cqh; 
 
     @Override
@@ -254,32 +253,33 @@ public class QuickMessagePopup extends Activity implements
             }
         });
 
- // Delete button
-       mDeleteButton.setOnClickListener(new OnClickListener() {
-           @Override
-           public void onClick(View v) {
-                 int numMessages = mMessageList.size();
-                 QuickMessage qm = mMessageList.get(mCurrentPage);
-                 if (qm != null) {
-                     DeleteMessageListener l = new DeleteMessageListener(qm.getMessageUri(), qm, numMessages);
-                     confirmDeleteDialog(l, false);
-                     
+  // Delete button
+        mDeleteButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int numMessages = mMessageList.size();
+                QuickMessage qm = mMessageList.get(mCurrentPage);
+                if (qm != null) {
+                    DeleteMessageListener l = new DeleteMessageListener(qm.getMessageUri(), qm, numMessages);
+                    confirmDeleteDialog(l, false);
+               
                 }
-            }
-        });
-
+             }
+         });
+ 
         // View button
         mViewButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
 
-            // Override the re-lock if the screen was unlocked
+                // Override the re-lock if the screen was unlocked
                 if (mScreenUnlocked) {
                     // Cancel the receiver that will clear the wake locks
                     ClearAllReceiver.removeCancel(getApplicationContext());
                     ClearAllReceiver.clearAll(false);
                     mScreenUnlocked = false;
                 }
+
                 // Trigger the view intent
                 mCurrentQm = mMessageList.get(mCurrentPage);
                 Intent vi = mCurrentQm.getViewIntent();
@@ -682,10 +682,10 @@ public class QuickMessagePopup extends Activity implements
                     QuickMessage qm = mMessageList.get(mCurrentPage);
                     if (qm != null) {
                         // add the emoji at the cursor location or replace selected
- 	                int start = qm.getEditText().getSelectionStart();
- 	                int end = qm.getEditText().getSelectionEnd();
- 	                qm.getEditText().getText().replace(Math.min(start, end),
- 	                Math.max(start, end), editText.getText());
+                        int start = qm.getEditText().getSelectionStart();
+                        int end = qm.getEditText().getSelectionEnd();
+                        qm.getEditText().getText().replace(Math.min(start, end),
+                                Math.max(start, end), editText.getText());
                     }
                     mEmojiDialog.dismiss();
                 }
@@ -926,8 +926,7 @@ public class QuickMessagePopup extends Activity implements
 
         if (!TextUtils.isEmpty(message)) {
             SmileyParser parser = SmileyParser.getInstance();
-            int recv = prefs.getInt(ThemesMessageList.PREF_RECV_SMILEY, 0xff33b5e5);
-            CharSequence smileyBody = parser.addSmileySpans(message, recv);
+            CharSequence smileyBody = parser.addSmileySpansRecv(message);
             if (enableEmojis) {
                 EmojiParser emojiParser = EmojiParser.getInstance();
                 smileyBody = emojiParser.addEmojiSpans(smileyBody);
@@ -1354,4 +1353,6 @@ public class QuickMessagePopup extends Activity implements
         @Override
         public void onPageScrolled(int arg0, float arg1, int arg2) {}
    }
+
+
 }

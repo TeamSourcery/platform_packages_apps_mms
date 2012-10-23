@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -85,6 +86,8 @@ import android.os.Message;
 import android.os.Parcelable;
 import android.os.SystemProperties;
 import android.preference.PreferenceManager;
+import android.provider.CalendarContract;
+import android.provider.CalendarContract.Events;
 import android.provider.ContactsContract;
 import android.provider.ContactsContract.CommonDataKinds.Email;
 import android.provider.ContactsContract.Contacts;
@@ -249,6 +252,9 @@ public class ComposeMessageActivity extends Activity
     private static final int MENU_ADD_TEMPLATE          = 32;
     private static final int MENU_INSERT_EMOJI         = 33;
 
+    // Add SMS to calendar reminder
+    private static final int MENU_ADD_TO_CALENDAR       = 34;
+
     private static final int DIALOG_TEMPLATE_SELECT     = 1;
     private static final int DIALOG_TEMPLATE_NOT_AVAILABLE = 2;
     private static final int LOAD_TEMPLATE_BY_ID        = 0;
@@ -353,6 +359,9 @@ public class ComposeMessageActivity extends Activity
                                             // so we can remember it after re-entering the activity.
                                             // If the value >= 0, then we jump to that line. If the
                                             // value is maxint, then we jump to the end.
+
+    // Add SMS to calendar reminder
+    private static final String CALENDAR_EVENT_TYPE = "vnd.android.cursor.item/event";
 
     /**
      * Whether this activity is currently running (i.e. not paused)
@@ -715,9 +724,6 @@ public class ComposeMessageActivity extends Activity
             // The provider doesn't support multi-part sms's so as soon as the user types
             // an sms longer than one segment, we have to turn the message into an mms.
             mWorkingMessage.setLengthRequiresMms(msgCount > 1, true);
-        } else {
-            int threshold = MmsConfig.getSmsToMmsTextThreshold();
-            mWorkingMessage.setLengthRequiresMms(threshold > 0 && msgCount > threshold, true);
         }
 
         // Show the counter only if:
@@ -887,12 +893,12 @@ public class ComposeMessageActivity extends Activity
             Context context = ComposeMessageActivity.this;
 
             mWorkingMessage.setWorkingRecipients(mRecipientsEditor.getNumbers());
-            
-             if (recipientCount() > 1 && MessagingPreferenceActivity.getGroupMMSEnabled(context)) {
-                 mWorkingMessage.setGroupTextMms(recipientCount() > 1, true);
-             } else {
-                 mWorkingMessage.setHasEmail(mRecipientsEditor.containsEmail(), true);
-             }
+
+            if (recipientCount() > 1 && MessagingPreferenceActivity.getGroupMMSEnabled(context)) {
+                mWorkingMessage.setGroupTextMms(recipientCount() > 1, true);
+            } else {
+                mWorkingMessage.setHasEmail(mRecipientsEditor.containsEmail(), true);
+            }
 
             checkForTooManyRecipients();
 
@@ -1193,6 +1199,9 @@ public class ComposeMessageActivity extends Activity
 
                 menu.add(0, MENU_COPY_MESSAGE_TEXT, 0, R.string.copy_message_text)
                 .setOnMenuItemClickListener(l);
+                // Add SMS to calendar reminder
+                menu.add(0, MENU_ADD_TO_CALENDAR, 0, R.string.menu_add_to_calendar)
+                        .setOnMenuItemClickListener(l);
             }
 
             addCallAndContactMenuItems(menu, l, msgItem);
@@ -1329,6 +1338,19 @@ public class ComposeMessageActivity extends Activity
     private void copyToClipboard(String str) {
         ClipboardManager clipboard = (ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
         clipboard.setPrimaryClip(ClipData.newPlainText(null, str));
+
+    }
+    // Add SMS to calendar reminder
+    private void addEventToCalendar(String subject, String description) {
+        Intent calendarIntent = new Intent(Intent.ACTION_INSERT);
+        Calendar calTime = Calendar.getInstance();
+        calendarIntent.setType(CALENDAR_EVENT_TYPE);
+        calendarIntent.putExtra(Events.TITLE, subject);
+        calendarIntent.putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, calTime.getTimeInMillis());
+        calTime.add(Calendar.MINUTE, 30);
+        calendarIntent.putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, calTime.getTimeInMillis());
+        calendarIntent.putExtra(Events.DESCRIPTION, description);
+        startActivity(calendarIntent);
     }
 
     private void forwardMessage(final MessageItem msgItem) {
@@ -1473,6 +1495,12 @@ public class ComposeMessageActivity extends Activity
 
                 case MENU_UNLOCK_MESSAGE: {
                     lockMessage(mMsgItem, false);
+                    return true;
+                }
+            
+                // Add SMS to calendar reminder
+                case MENU_ADD_TO_CALENDAR: {
+                    addEventToCalendar(mMsgItem.mSubject, mMsgItem.mBody);
                     return true;
                 }
 
@@ -2424,7 +2452,7 @@ public class ComposeMessageActivity extends Activity
         if (mMsgListAdapter != null) {
             // Close the cursor in the ListAdapter if the activity stopped.
             Cursor cursor = mMsgListAdapter.getCursor();
- 
+
             if (cursor != null && !cursor.isClosed()) {
                 cursor.close();
             }
@@ -3428,7 +3456,7 @@ public class ComposeMessageActivity extends Activity
 
         CharSequence text = mWorkingMessage.getText();
         SharedPreferences prefs = PreferenceManager
-                .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
+                    .getDefaultSharedPreferences((Context) ComposeMessageActivity.this);
 
         // TextView.setTextKeepState() doesn't like null input.
         if (text != null) {
@@ -3819,9 +3847,10 @@ public class ComposeMessageActivity extends Activity
             sp = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
             mSignature = sp.getString(Themes.PREF_SIGNATURE, "");
             if (!mSignature.isEmpty()) {
-                 mSignature = "\n" + mSignature;
-                 mWorkingMessage.setText(mWorkingMessage.getText() + mSignature);
+                mSignature = "\n" + mSignature;
+                mWorkingMessage.setText(mWorkingMessage.getText() + mSignature);
             }
+
             mWorkingMessage.send(mDebugRecipients);
 
             mSentMessage = true;
@@ -4341,14 +4370,14 @@ public class ComposeMessageActivity extends Activity
                     EditText mToInsert;
 
                     String smiley = (String)item.get("text");
+                    // tag EditText to insert to
                     if (mSubjectTextEditor != null && mSubjectTextEditor.hasFocus()) {
                         mToInsert = mSubjectTextEditor;
                     } else {
-                       mToInsert = mTextEditor;
+                        mToInsert = mTextEditor;
                     }
-
                     // Insert the smiley text at current cursor position in editText
- 	            // math funcs deal with text selected in either direction
+                    // math funcs deal with text selected in either direction
                     //
                     int start = mToInsert.getSelectionStart();
                     int end = mToInsert.getSelectionEnd();
@@ -4399,9 +4428,9 @@ public class ComposeMessageActivity extends Activity
                     }
                     // insert the emoji at the cursor location or replace selected
                     int start = mToInsert.getSelectionStart();
- 	            int end = mToInsert.getSelectionEnd();
- 	            mToInsert.getText().replace(Math.min(start, end), Math.max(start, end), emoji);
-         
+                    int end = mToInsert.getSelectionEnd();
+                    mToInsert.getText().replace(Math.min(start, end), Math.max(start, end), emoji);
+
                     mEmojiDialog.dismiss();
                     return true;
                 }
@@ -4410,20 +4439,19 @@ public class ComposeMessageActivity extends Activity
             button.setOnClickListener(new android.view.View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    EditText mToInsert;
+                     EditText mToInsert;
 
- 	            // tag edit text to insert to
+                    // tag edit text to insert to
                     if (mSubjectTextEditor != null && mSubjectTextEditor.hasFocus()) {
                         mToInsert = mSubjectTextEditor;
                     } else {
                         mToInsert = mTextEditor;
                     }
-
                     // insert the emoji at the cursor location or replace selected
                     int start = mToInsert.getSelectionStart();
                     int end = mToInsert.getSelectionEnd();
                     mToInsert.getText().replace(Math.min(start, end), Math.max(start, end),
-                             editText.getText());
+                            editText.getText());
 
                     mEmojiDialog.dismiss();
                 }
@@ -4596,12 +4624,12 @@ public class ComposeMessageActivity extends Activity
                     public void onClick(DialogInterface dialog, int which) {
                        Cursor c = (Cursor) mTemplatesCursorAdapter.getItem(which);
                        String text = c.getString(c.getColumnIndex(Template.TEXT));
-                      
+
                        // insert selected template text at the cursor location or replace selected
                        int start = mTextEditor.getSelectionStart();
                        int end = mTextEditor.getSelectionEnd();
                        mTextEditor.getText().replace(Math.min(start, end),
-                              Math.max(start, end), text);
+                               Math.max(start, end), text);
                     }
 
                 });

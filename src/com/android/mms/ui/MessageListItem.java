@@ -347,7 +347,7 @@ public class MessageListItem extends LinearLayout implements
                                 + mContext.getString(R.string.kilobyte);
 
         if (mMessageItem.mType.equals("mms")) {
-            mBodySenderView.setText(mMessageItem.mContact + ":");
+            mBodySenderView.setText(mMessageItem.mGroupContact + ":");
             mBodySenderView.setVisibility(View.VISIBLE);
         } else {
             mBodySenderView.setVisibility(View.GONE);
@@ -482,7 +482,7 @@ public class MessageListItem extends LinearLayout implements
         mBodyTextView.setText(formattedMessage);
 
         if (mMessageItem.mType.equals("mms")) {
-            mBodySenderView.setText(mMessageItem.mContact + ":");
+            mBodySenderView.setText(mMessageItem.mGroupContact + ":");
             mBodySenderView.setVisibility(View.VISIBLE);
         } else {
             mBodySenderView.setVisibility(View.GONE);
@@ -711,17 +711,15 @@ public class MessageListItem extends LinearLayout implements
         boolean hasSubject = !TextUtils.isEmpty(subject);
         SmileyParser parser = SmileyParser.getInstance();
         EmojiParser emojiParser = EmojiParser.getInstance();
-        int smileySentColor = sp.getInt(ThemesMessageList.PREF_SENT_SMILEY, 0xff33b5e5);
-        int smileyRecvColor = sp.getInt(ThemesMessageList.PREF_RECV_SMILEY, 0xff33b5e5);
         if (hasSubject) {
             CharSequence smilizedSubject;
             if (mMessageItem.getBoxId() == 1) {
-                smilizedSubject = parser.addSmileySpans(subject, smileyRecvColor);
+                smilizedSubject = parser.addSmileySpansRecv(subject);
                 if (enableEmojis) {
                     smilizedSubject = emojiParser.addEmojiSpans(smilizedSubject);
                 }
             } else {
-                smilizedSubject = parser.addSmileySpans(subject, smileySentColor);
+                smilizedSubject = parser.addSmileySpansSent(subject);
                 if (enableEmojis) {
                     smilizedSubject = emojiParser.addEmojiSpans(smilizedSubject);
                 }
@@ -744,12 +742,12 @@ public class MessageListItem extends LinearLayout implements
                     buf.append(" - ");
                 }
                 if (mMessageItem.getBoxId() == 1) {
-                    smileyBody = parser.addSmileySpans(body, smileyRecvColor);
+                    smileyBody = parser.addSmileySpansRecv(body);
                     if (enableEmojis) {
                         smileyBody = emojiParser.addEmojiSpans(smileyBody);
                     }
                 } else {
-                    smileyBody = parser.addSmileySpans(body, smileySentColor);
+                    smileyBody = parser.addSmileySpansSent(body);
                     if (enableEmojis) {
                         smileyBody = emojiParser.addEmojiSpans(smileyBody);
                     }

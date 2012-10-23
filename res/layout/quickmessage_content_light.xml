@@ -16,7 +16,7 @@
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/QuickMessageContentlayout"
-    android:layout_width="fill_parent"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="center_horizontal|bottom"
     android:orientation="vertical" >
@@ -131,6 +131,7 @@
             android:minHeight="@dimen/input_text_height"
             android:textColor="@color/qm_light_text"
             android:textColorHint="?android:attr/textColorTertiary"
+            android:textCursorDrawable = "@null"
             android:maxLines="3"
             android:inputType="textShortMessage|textAutoCorrect|textCapSentences|textMultiLine"
             android:imeOptions="actionSend|flagNoEnterAction"

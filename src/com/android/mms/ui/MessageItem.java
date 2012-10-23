@@ -76,6 +76,7 @@ public class MessageItem {
     String mTimestamp;
     String mAddress;
     String mContact;
+    String mGroupContact;
     String mBody; // Body of SMS, first text of MMS.
     String mTextContentType; // ContentType of text of MMS.
     Pattern mHighlight; // portion of message to highlight (from search)
@@ -163,8 +164,7 @@ public class MessageItem {
                 }
                 mTimestamp = MessageUtils.formatTimeStampString(context, date, mFullTimestamp);
             }
-         
-            mContact = Contact.get(getMmsSender(mMsgId, mContext), false).getName();
+            mGroupContact = Contact.get(getMmsSender(mMsgId, mContext), false).getName();
             mLocked = cursor.getInt(columnsMap.mColumnSmsLocked) != 0;
             mErrorCode = cursor.getInt(columnsMap.mColumnSmsErrorCode);
         } else if ("mms".equals(type)) {
@@ -208,16 +208,16 @@ public class MessageItem {
         String sender="";
         final String[] projection =  new String[] { "address", "contact_id", "charset", "type" };
         final String selection = "type=137"; // "type="+ PduHeaders.FROM,
- 
+
         Uri.Builder builder = Uri.parse("content://mms").buildUpon();
         builder.appendPath(String.valueOf(msgId)).appendPath("addr");
- 
+
         Cursor cursor = context.getContentResolver().query(
             builder.build(),
             projection,
             selection,
             null, null);
- 
+
         if (cursor.moveToFirst()) {
             sender =  cursor.getString(0);
         }

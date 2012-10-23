@@ -221,15 +221,13 @@ public class ConversationListItem extends RelativeLayout implements Contact.Upda
         }
         Contact.addListener(this);
 
-        // Subject
         SmileyParser parser = SmileyParser.getInstance();
+        // Subject
         CharSequence smileySubject;
-        int smileyReadColor = sp.getInt(ThemesConversationList.PREF_READ_SMILEY, 0xff33b5e5);
-        int smileyUnreadColor = sp.getInt(ThemesConversationList.PREF_UNREAD_SMILEY, 0xff33b5e5);
         if (mConversation.hasUnreadMessages()) {
-            smileySubject = parser.addSmileySpans(conversation.getSnippet(), smileyUnreadColor);
+            smileySubject = parser.addSmileySpansUnread(conversation.getSnippet());
         } else {
-            smileySubject = parser.addSmileySpans(conversation.getSnippet(), smileyReadColor);
+            smileySubject = parser.addSmileySpansRead(conversation.getSnippet());
         }
         SharedPreferences prefs = PreferenceManager
                 .getDefaultSharedPreferences(mContext);

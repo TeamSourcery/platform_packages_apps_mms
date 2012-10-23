@@ -62,7 +62,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String SMS_SPLIT_MESSAGE        = "pref_key_sms_split_160";
     public static final String SMS_SPLIT_COUNTER        = "pref_key_sms_split_counter";
     public static final String NOTIFICATION_ENABLED     = "pref_key_enable_notifications";
-    public static final String GROUP_MMS_ENABLED        = "pref_key_mms_group_mms";
+    public static final String GROUP_MMS_ENABLED    = "pref_key_mms_group_mms";
     public static final String NOTIFICATION_VIBRATE     = "pref_key_vibrate";
     public static final String NOTIFICATION_VIBRATE_WHEN= "pref_key_vibrateWhen";
     public static final String NOTIFICATION_RINGTONE    = "pref_key_ringtone";
@@ -379,6 +379,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                     mMmsRecycler.getMessageMinLimit(),
                     mMmsRecycler.getMessageMaxLimit(),
                     R.string.pref_title_mms_delete).show();
+
         } else if (preference == mSmsToMmsTextThreshold) {
             new NumberPickerDialog(this,
                     mSmsToMmsTextThresholdListener,
@@ -386,19 +387,25 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                     MmsConfig.getSmsToMmsTextThresholdMin()-1,
                     MmsConfig.getSmsToMmsTextThresholdMax()-1,
                     R.string.pref_title_sms_SmsToMmsTextThreshold).show();
+
         } else if (preference == mManageSimPref) {
             startActivity(new Intent(this, ManageSimMessages.class));
+
         } else if (preference == mClearHistoryPref) {
             showDialog(CONFIRM_CLEAR_SEARCH_HISTORY_DIALOG);
             return true;
+
         } else if (preference == mEnableNotificationsPref) {
             // Update the actual "enable notifications" value that is stored in secure settings.
             enableNotifications(mEnableNotificationsPref.isChecked(), this);
+
         } else if (preference == mEnableMultipartSMS) {
             //should be false when the checkbox is checked
             MmsConfig.setEnableMultipartSMS(!mEnableMultipartSMS.isChecked());
+
         } else if (preference == mMmsGroupMmsPref) {
             enableGroupMMS(mMmsGroupMmsPref.isChecked(), this);
+
         } else if (preference == mEnableQuickMessagePref) {
             // Update the actual "enable quickmessage" value that is stored in secure settings.
             enableQuickMessage(mEnableQuickMessagePref.isChecked(), this);
@@ -554,11 +561,11 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static void enableGroupMMS(boolean enabled, Context context) {
         // Store the value of GroupMMS in SharedPreferences
         SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(context).edit();
- 
+
         editor.putBoolean(MessagingPreferenceActivity.GROUP_MMS_ENABLED, enabled);
 
         editor.apply();
-  }
+    }
 
     private void registerListeners() {
         mVibrateWhenPref.setOnPreferenceChangeListener(this);
