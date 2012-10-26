@@ -346,11 +346,12 @@ public class MessageListItem extends LinearLayout implements
                                 + String.valueOf((mMessageItem.mMessageSize + 1023) / 1024)
                                 + mContext.getString(R.string.kilobyte);
 
+	mBodySenderView.setVisibility(View.GONE);
         if (mMessageItem.mType.equals("mms")) {
-            mBodySenderView.setText(mMessageItem.mGroupContact + ":");
-            mBodySenderView.setVisibility(View.VISIBLE);
-        } else {
-            mBodySenderView.setVisibility(View.GONE);
+	    if (mMessageItem.mGroupContact != null) {
+            	mBodySenderView.setText(mMessageItem.mGroupContact + ":");
+            	mBodySenderView.setVisibility(View.VISIBLE);
+	    }
         }
 
         mBodyTextView.setText(formatMessage(mMessageItem, mMessageItem.mContact, null,
@@ -481,11 +482,12 @@ public class MessageListItem extends LinearLayout implements
         }
         mBodyTextView.setText(formattedMessage);
 
+        mBodySenderView.setVisibility(View.GONE);
         if (mMessageItem.mType.equals("mms")) {
-            mBodySenderView.setText(mMessageItem.mGroupContact + ":");
-            mBodySenderView.setVisibility(View.VISIBLE);
-        } else {
-            mBodySenderView.setVisibility(View.GONE);
+	    if (mMessageItem.mGroupContact != null) {
+            	mBodySenderView.setText(mMessageItem.mGroupContact + ":");
+            	mBodySenderView.setVisibility(View.VISIBLE);
+	    }
         }
 
         // Debugging code to put the URI of the image attachment in the body of the list item.
