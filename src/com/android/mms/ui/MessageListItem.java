@@ -128,8 +128,11 @@ public class MessageListItem extends LinearLayout implements
     private ImageLoadedCallback mImageLoadedCallback;
 
     // Theme settings
-    private boolean mBubbleFillParent, mUseContact = false;
-    private int mSentTextBgColor, mRecvTextBgColor;
+    private boolean mBubbleFillParent;
+    private boolean mUseContact;
+    private boolean mGroupMmsEnabled;
+    private int mSentTextBgColor;
+    private int mRecvTextBgColor;
     SharedPreferences sp;
 
     public MessageListItem(Context context) {
@@ -152,6 +155,8 @@ public class MessageListItem extends LinearLayout implements
             sDefaultContactImage = context.getResources().getDrawable(R.drawable.ic_contact_picture);
         }
         sp = PreferenceManager.getDefaultSharedPreferences(mContext);
+
+        mGroupMmsEnabled = MessagingPreferenceActivity.getGroupMMSEnabled(context);
     }
 
     @Override
@@ -346,12 +351,18 @@ public class MessageListItem extends LinearLayout implements
                                 + String.valueOf((mMessageItem.mMessageSize + 1023) / 1024)
                                 + mContext.getString(R.string.kilobyte);
 
-	mBodySenderView.setVisibility(View.GONE);
-        if (mMessageItem.mType.equals("mms")) {
-	    if (mMessageItem.mGroupContact != null) {
-            	mBodySenderView.setText(mMessageItem.mGroupContact + ":");
-            	mBodySenderView.setVisibility(View.VISIBLE);
-	    }
+        if (mMessageItem.mType.equals("mms") && mGroupMmsEnabled) {
+ 	    mBodySenderView.setText("from:" + mMessageItem.mContact);
+            mBodySenderView.setVisibility(View.VISIBLE);
+            if (mMessageItem.getBoxId() == 1) {
+                int mRecvColor = sp.getInt(ThemesMessageList.PREF_RECV_CONTACT_COLOR, 0xffffffff);
+                mBodySenderView.setTextColor(mRecvColor);
+            } else {
+                int mSentColor = sp.getInt(ThemesMessageList.PREF_SENT_CONTACT_COLOR, 0xffffffff);
+                mBodySenderView.setTextColor(mSentColor);
+            }
+        } else {
+            mBodySenderView.setVisibility(View.GONE);
         }
 
         mBodyTextView.setText(formatMessage(mMessageItem, mMessageItem.mContact, null,
@@ -482,12 +493,18 @@ public class MessageListItem extends LinearLayout implements
         }
         mBodyTextView.setText(formattedMessage);
 
-        mBodySenderView.setVisibility(View.GONE);
-        if (mMessageItem.mType.equals("mms")) {
-	    if (mMessageItem.mGroupContact != null) {
-            	mBodySenderView.setText(mMessageItem.mGroupContact + ":");
-            	mBodySenderView.setVisibility(View.VISIBLE);
-	    }
+        if (mMessageItem.mType.equals("mms") && mGroupMmsEnabled) {
+ 	    mBodySenderView.setText("from:" + mMessageItem.mContact);
+            mBodySenderView.setVisibility(View.VISIBLE);
+        if (mMessageItem.getBoxId() == 1) {
+                int mRecvColor = sp.getInt(ThemesMessageList.PREF_RECV_CONTACT_COLOR, 0xffffffff);
+                mBodySenderView.setTextColor(mRecvColor);
+           } else {
+                int mSentColor = sp.getInt(ThemesMessageList.PREF_SENT_CONTACT_COLOR, 0xffffffff);
+                mBodySenderView.setTextColor(mSentColor);
+           }
+        } else {
+            mBodySenderView.setVisibility(View.GONE);
         }
 
         // Debugging code to put the URI of the image attachment in the body of the list item.
