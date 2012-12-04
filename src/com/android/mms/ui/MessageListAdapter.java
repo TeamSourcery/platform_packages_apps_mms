@@ -17,6 +17,8 @@
 
 package com.android.mms.ui;
 
+import java.util.regex.Pattern;
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -39,10 +41,7 @@ import android.widget.CursorAdapter;
 import android.widget.ListView;
 
 import com.android.mms.R;
-import com.android.mms.themes.ThemesMessageList;
 import com.google.android.mms.MmsException;
-
-import java.util.regex.Pattern;
 
 /**
  * The back-end data adapter of a message list.
@@ -78,7 +77,8 @@ public class MessageListAdapter extends CursorAdapter {
         Mms.READ_REPORT,
         PendingMessages.ERROR_TYPE,
         Mms.LOCKED,
-        Mms.STATUS
+        Mms.STATUS,
+        Mms.TEXT_ONLY
     };
 
     // The indexes of the default columns which must be consistent
@@ -107,6 +107,7 @@ public class MessageListAdapter extends CursorAdapter {
     static final int COLUMN_MMS_ERROR_TYPE      = 21;
     static final int COLUMN_MMS_LOCKED          = 22;
     static final int COLUMN_MMS_STATUS          = 23;
+    static final int COLUMN_MMS_TEXT_ONLY       = 24;
 
     private static final int CACHE_SIZE         = 50;
 
@@ -122,9 +123,9 @@ public class MessageListAdapter extends CursorAdapter {
     private Handler mMsgListItemHandler;
     private Pattern mHighlight;
     private Context mContext;
+    private boolean mIsGroupConversation;
     private boolean mFullTimestamp;
     private boolean mSentTimestamp;
-    private SharedPreferences sp;
 
     public MessageListAdapter(
             Context context, Cursor c, ListView listView,
@@ -169,7 +170,7 @@ public class MessageListAdapter extends CursorAdapter {
             if (msgItem != null) {
                 MessageListItem mli = (MessageListItem) view;
                 int position = cursor.getPosition();
-                mli.bind(msgItem, position == cursor.getCount() - 1, position);
+                mli.bind(msgItem, mIsGroupConversation, position);
                 mli.setMsgListItemHandler(mMsgListItemHandler);
             }
         }
@@ -186,6 +187,10 @@ public class MessageListAdapter extends CursorAdapter {
 
     public void setMsgListItemHandler(Handler handler) {
         mMsgListItemHandler = handler;
+    }
+
+    public void setIsGroupConversation(boolean isGroup) {
+        mIsGroupConversation = isGroup;
     }
 
     public void cancelBackgroundLoading() {
@@ -220,47 +225,10 @@ public class MessageListAdapter extends CursorAdapter {
     @Override
     public View newView(Context context, Cursor cursor, ViewGroup parent) {
         int boxType = getItemViewType(cursor);
-        mContext = context;
-        sp = PreferenceManager.getDefaultSharedPreferences(mContext);
-        String layoutType = sp.getString(ThemesMessageList.PREF_TEXT_CONV_LAYOUT, "**DEFAULT**");
-        View view;
-
-        if (sp.getBoolean(ThemesMessageList.PREF_SHOW_AVATAR, true)) {
-            if (layoutType.equals("**LAYOUTFROMLEFT**")) {
-                view = mInflater.inflate((boxType == INCOMING_ITEM_TYPE_SMS ||
-                        boxType == INCOMING_ITEM_TYPE_MMS) ?
-                        R.layout.message_list_item_recv :
-                        R.layout.message_list_item_send_left, parent, false);
-            } else if (layoutType.equals("**LAYOUTFROMRIGHT**")) {
-                view = mInflater.inflate((boxType == INCOMING_ITEM_TYPE_SMS ||
-                        boxType == INCOMING_ITEM_TYPE_MMS) ?
-                        R.layout.message_list_item_recv_right :
-                        R.layout.message_list_item_send, parent, false);
-            } else {
-                view = mInflater.inflate((boxType == INCOMING_ITEM_TYPE_SMS ||
-                        boxType == INCOMING_ITEM_TYPE_MMS) ?
-                        R.layout.message_list_item_recv :
-                        R.layout.message_list_item_send, parent, false);
-            }
-        } else {
-            if (layoutType.equals("**LAYOUTFROMLEFT**")) {
-                view = mInflater.inflate((boxType == INCOMING_ITEM_TYPE_SMS ||
-                        boxType == INCOMING_ITEM_TYPE_MMS) ?
-                        R.layout.message_list_item_recv_noavatar :
-                        R.layout.message_list_item_send_left_noavatar, parent, false);
-            } else if (layoutType.equals("**LAYOUTFROMRIGHT**")) {
-                view = mInflater.inflate((boxType == INCOMING_ITEM_TYPE_SMS ||
-                        boxType == INCOMING_ITEM_TYPE_MMS) ?
-                        R.layout.message_list_item_recv_right_noavatar :
-                        R.layout.message_list_item_send_noavatar, parent, false);
-            } else {
-                view = mInflater.inflate((boxType == INCOMING_ITEM_TYPE_SMS ||
-                        boxType == INCOMING_ITEM_TYPE_MMS) ?
-                        R.layout.message_list_item_recv_noavatar :
-                        R.layout.message_list_item_send_noavatar, parent, false);
-            }
-        }
-
+        View view = mInflater.inflate((boxType == INCOMING_ITEM_TYPE_SMS ||
+                boxType == INCOMING_ITEM_TYPE_MMS) ?
+                        R.layout.message_list_item_recv : R.layout.message_list_item_send,
+                        parent, false);
         if (boxType == INCOMING_ITEM_TYPE_MMS || boxType == OUTGOING_ITEM_TYPE_MMS) {
             // We've got an mms item, pre-inflate the mms portion of the view
             view.findViewById(R.id.mms_layout_view_stub).setVisibility(View.VISIBLE);
@@ -283,7 +251,7 @@ public class MessageListAdapter extends CursorAdapter {
 
     private boolean isCursorValid(Cursor cursor) {
         // Check whether the cursor is valid or not.
-        if (cursor.isClosed() || cursor.isBeforeFirst() || cursor.isAfterLast()) {
+        if (cursor == null || cursor.isClosed() || cursor.isBeforeFirst() || cursor.isAfterLast()) {
             return false;
         }
         return true;
@@ -378,6 +346,7 @@ public class MessageListAdapter extends CursorAdapter {
         public int mColumnMmsErrorType;
         public int mColumnMmsLocked;
         public int mColumnMmsStatus;
+        public int mColumnMmsTextOnly;
 
         public ColumnsMap() {
             mColumnMsgType            = COLUMN_MSG_TYPE;
@@ -399,6 +368,7 @@ public class MessageListAdapter extends CursorAdapter {
             mColumnMmsErrorType       = COLUMN_MMS_ERROR_TYPE;
             mColumnMmsLocked          = COLUMN_MMS_LOCKED;
             mColumnMmsStatus          = COLUMN_MMS_STATUS;
+            mColumnMmsTextOnly        = COLUMN_MMS_TEXT_ONLY;
         }
 
         public ColumnsMap(Cursor cursor) {
@@ -515,6 +485,12 @@ public class MessageListAdapter extends CursorAdapter {
 
             try {
                 mColumnMmsStatus = cursor.getColumnIndexOrThrow(Mms.STATUS);
+            } catch (IllegalArgumentException e) {
+                Log.w("colsMap", e.getMessage());
+            }
+
+            try {
+                mColumnMmsTextOnly = cursor.getColumnIndexOrThrow(Mms.TEXT_ONLY);
             } catch (IllegalArgumentException e) {
                 Log.w("colsMap", e.getMessage());
             }

@@ -17,22 +17,23 @@
 
 package com.android.mms.transaction;
 
-import com.android.mms.LogTag;
-import com.android.mms.MmsConfig;
-import com.android.mms.ui.MessagingPreferenceActivity;
-import com.google.android.mms.MmsException;
-import android.database.sqlite.SqliteWrapper;
-
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
+import android.database.sqlite.SqliteWrapper;
 import android.net.Uri;
 import android.preference.PreferenceManager;
 import android.provider.Telephony.Sms;
+import android.provider.Telephony.Sms.Inbox;
 import android.telephony.SmsMessage;
 import android.util.Log;
+
+import com.android.mms.LogTag;
+import com.android.mms.MmsConfig;
+import com.android.mms.ui.MessagingPreferenceActivity;
+import com.google.android.mms.MmsException;
 
 import java.util.ArrayList;
 
@@ -48,7 +49,6 @@ public class SmsMessageSender implements MessageSender {
 
     // Default preference values
     private static final boolean DEFAULT_DELIVERY_REPORT_MODE  = false;
-    private static final boolean DEFAULT_SMS_SPLIT_MESSAGE = false;
     private static final boolean DEFAULT_SMS_SPLIT_COUNTER = false;
 
     private static final String[] SERVICE_CENTER_PROJECTION = new String[] {
@@ -92,9 +92,7 @@ public class SmsMessageSender implements MessageSender {
                 MessagingPreferenceActivity.SMS_DELIVERY_REPORT_MODE,
                 DEFAULT_DELIVERY_REPORT_MODE);
 
-        boolean splitMessage = prefs.getBoolean(
-                MessagingPreferenceActivity.SMS_SPLIT_MESSAGE,
-                DEFAULT_SMS_SPLIT_MESSAGE);
+        boolean splitMessage = MmsConfig.getSplitSmsEnabled();
 
         boolean splitCounter = prefs.getBoolean(
                 MessagingPreferenceActivity.SMS_SPLIT_COUNTER,
@@ -184,7 +182,7 @@ public class SmsMessageSender implements MessageSender {
 
         try {
             cursor = SqliteWrapper.query(mContext, mContext.getContentResolver(),
-                            Sms.CONTENT_URI, SERVICE_CENTER_PROJECTION,
+                            Inbox.CONTENT_URI, SERVICE_CENTER_PROJECTION,
                             "thread_id = " + threadId, null, "date DESC");
 
             if ((cursor == null) || !cursor.moveToFirst()) {

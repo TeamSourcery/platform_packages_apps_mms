@@ -56,6 +56,7 @@
     <string name="insufficient_drm_rights" msgid="6989074725969164383">"Ανιχνεύτηκαν ανεπαρκή δικαιώματα DRM."</string>
     <string name="copy_message_text" msgid="4296252229544252834">"Αντιγραφή κειμένου"</string>
     <string name="message_options" msgid="6838806653341967550">"Επιλογές μηνύματος"</string>
+    <string name="slideshow_options" msgid="3501759384739796431">"Επιλογές προβολής διαφανειών"</string>
     <string name="done" msgid="7479926268660505871">"Τέλος"</string>
     <string name="move_up" msgid="7307578107431739359">"Μετακίνηση προς τα επάνω"</string>
     <string name="move_down" msgid="6356509518429479053">"Μετακίνηση προς τα κάτω"</string>
@@ -81,6 +82,7 @@
     <string name="remove" msgid="4625444913256213175">"Κατάργηση"</string>
     <string name="send" msgid="4589898724889248486">"Αποστολή"</string>
     <string name="mms" msgid="1587631213714914559">"MMS"</string>
+    <string name="send_mms" msgid="2933162044872550662">"Αποστολή MMS"</string>
     <string name="all_threads" msgid="2663426830306307194">"Όλα τα νήματα"</string>
     <string name="type_to_compose_text_enter_to_send" msgid="3539985471008581265">"Πληκτρολογήστε το μήνυμά σας"</string>
     <string name="open_keyboard_to_compose_message" msgid="7860109685511253191">"Ανοίξτε το πληκτρολόγιο για να πληκτρολογήσετε το μήνυμα"</string>
@@ -104,7 +106,6 @@
     <string name="cannot_send_message_reason" msgid="8745080126044054343">"Το μήνυμά σας δεν έχει έγκυρους παραλήπτες."</string>
     <string name="cannot_forward_drm_obj" msgid="5047623751430559077">"Δεν είναι δυνατή η προώθηση του αντικειμένου DRM που περιλαμβάνεται στο μήνυμα."</string>
     <string name="converting_to_picture_message" msgid="2980023239017588627">"Μετατροπή σε μήνυμα πολυμέσων..."</string>
-    <string name="converting_to_text_message" msgid="6374423235426015422">"Μετατροπή σε μήνυμα κειμένου..."</string>
     <string name="cannot_add_slide_anymore" msgid="4631404749618820994">"Δεν είναι δυνατή η προσθήκη περισσότερων διαφανειών."</string>
     <string name="cannot_add_picture_and_video" msgid="4954353772391381447">"Δεν είναι δυνατή η προσθήκη βίντεο και εικόνας σε μια διαφάνεια."</string>
     <string name="cannot_save_message" msgid="3375907366965264446">"Δεν είναι δυνατή η αποθήκευση του μηνύματος."</string>
@@ -161,8 +162,10 @@
     <string name="pref_summary_sms_delivery_reports" msgid="5852207702358546129">"Αίτηση αναφοράς παράδοσης για κάθε μήνυμα που στέλνετε"</string>
     <string name="pref_summary_auto_delete" msgid="7719538116486177613">"Διαγραφή παλαιών μηνυμάτων όσο συμπληρώνονται τα όρια"</string>
     <string name="pref_summary_delete_limit" msgid="597128041393045216">"<xliff:g id="COUNT">%1$s</xliff:g> μηνύματα ανά συνομιλία"</string>
+    <string name="pref_summary_mms_group_mms" msgid="2266928687440696745">"Χρησιμοποιήστε το MMS για να στείλετε ένα μήνυμα σε πολλούς παραλήπτες"</string>
     <string name="pref_title_manage_sim_messages" msgid="7820895261757881177">"Διαχείριση μηνυμάτων της κάρτας SIM"</string>
     <string name="pref_title_mms_delivery_reports" msgid="6666857926679451910">"Αναφορές παράδοσης"</string>
+    <string name="pref_title_mms_group_mms" msgid="1251698526583908432">"Ομαδική ανταλλαγή μηνυμάτων"</string>
     <string name="pref_title_mms_read_reports" msgid="4882179829495828541">"Αναφορές ανάγνωσης"</string>
     <string name="pref_title_sms_delivery_reports" msgid="876064208254451038">"Αναφορές παράδοσης"</string>
     <string name="pref_title_auto_delete" msgid="7227835692631701134">"Διαγραφή παλαιών μηνυμάτων"</string>
@@ -286,6 +289,7 @@
     <string name="saved_ringtone" msgid="3847363932276708626">"Ο ήχος κλήσης αποθηκεύτηκε."</string>
     <string name="saved_ringtone_fail" msgid="4778500070919251116">"Δεν ήταν δυνατή η αποθήκευση του ήχου κλήσης."</string>
     <string name="menu_insert_smiley" msgid="4964504393061025071">"Εισαγ.εικον.smiley"</string>
+    <string name="menu_group_participants" msgid="4288356090262299071">"Συμμετέχοντες ομάδας"</string>
     <string name="select_link_title" msgid="3371818607625768447">"Επιλογή ενέργειας"</string>
     <string name="slide_number" msgid="1923958526266726635">"Διαφάνεια <xliff:g id="NUMBER">%s</xliff:g>"</string>
   <plurals name="slide_duration">
@@ -297,6 +301,7 @@
     <string name="storage_limits_activity" msgid="8810530813311077716">"Όρια αποθηκευτικού χώρου"</string>
     <string name="change_duration_activity" msgid="7048606979485031693">"Αλλαγή διάρκειας"</string>
     <string name="edit_slideshow_activity" msgid="8751493388760050529">"Επεξεργασία προβολής διαφανειών (slideshow)"</string>
+    <string name="recipient_list_activity" msgid="1254938236543727019">"Συμμετέχοντες ομάδας"</string>
     <string name="edit_slide_activity" msgid="8752829671778696983">"Επεξεργασία διαφάνειας"</string>
     <string name="slideshow_activity" msgid="5658249461317434432">"Προβολή διαφανειών (slideshow)"</string>
     <string name="class_0_message_activity" msgid="6631339964159861048">"Μήνυμα κλάσης 0"</string>
@@ -343,4 +348,101 @@
     <string name="attachment_picture" msgid="3709286281567284296">"Εικόνα"</string>
     <string name="notification_separator" msgid="2334673105226536422">"  "</string>
     <string name="enumeration_comma" msgid="213598026698964628">", "</string>
+    <string name="message_timestamp_format" msgid="4188999027493614617">"<xliff:g id="STRING_0">%1$s</xliff:g> - <xliff:g id="STRING_1">%2$s</xliff:g>"</string>
+
+    <!-- Settings item for boolean option for SMS Split Counter -->
+    <string name="pref_title_sms_split_counter">Μετρητής χαρακτήρων</string>
+    <!-- Settings item description for boolean SMS Split 160 characters setting -->
+    <string name="pref_summary_sms_split_counter">Xαρακτήρες που απομένουν εώς το διαχωρισμό του SMS πχ. (1/160)</string>
+
+    <!-- Sms templates -->
+    <string name="prefs_templates_settings">Πρότυπα SMS</string>
+    <string name="pref_title_templates_manage">Πρότυπα</string>
+    <string name="pref_summary_templates_manage">Διαχείριση προτύπων SMS</string>
+    <string name="pref_title_templates_show_gesture">Χειρονομία</string>
+    <string name="pref_summary_templates_show_gesture">Εμφάνιση ίχνους χειρονομίας</string>
+    <string name="pref_title_template_gestures_sensitivity">Ευαισθησία χειρονομίας</string>
+    <string name="template_save">Αποθήκευση</string>
+    <string name="template_insert_hint">Εισάγετε το κείμενο του προτύπου εδώ</string>
+    <string name="template_empty_text">Το πεδίο δεν μπορεί να είναι άδειο</string>
+    <string name="template_explanation">Εισάγετε η τροποποιήστε το κείμενο του προτύπου και προεραιτικά συνδέστε το με μια χειρονομία</string>
+    <string name="template_edit">Επεξεργασία</string>
+    <string name="template_delete">Διαγραφή</string>
+    <string name="template_ctx_menu_title">Ενέργειες</string>
+    <string name="template_list_title">Πρότυπα</string>
+    <string name="template_new_title">Νέο πρότυπο</string>
+    <string name="template_insert">Εισαγωγή προτύπου</string>
+    <string name="template_gesture_draw">Σχεδιάστε την χειρονομία στον παρακάτω χώρο</string>
+    <string name="template_not_present_error">Δεν υπάρχουν καθορισμένα πρότυπα</string>
+    <string name="template_not_present_error_title">Σφάλμα</string>
+    <string name="template_select">Επιλογή προτύπου</string>
+    <string name="template_cancel_confirm_title">Προσοχή</string>
+    <string name="template_cancel_confirm_text">Το πρότυπο θα διαγραφεί. Συνέχεια;</string>
+    <string name="gestures_already_present">Προσοχή: Μια παρόμοια κίνηση είναι συνδεδεμένη με ένα άλλο πρότυπο!</string>
+
+    <!-- Change Vibrate pattern/method for message notification -->
+    <string name="pref_title_mms_notification_vibrate_settings">Ρυθμίσεις δόνησης</string>
+    <string name="pref_title_mms_notification_vibrate_pattern">Μοτίβο δόνησης</string>
+    <string name="pref_summary_mms_notification_vibrate_pattern">Αλλαγή μοτίβου δόνησης</string>
+    <string name="pref_title_mms_notification_vibrate_call">Δόνηση κατά την κλήση</string>
+    <string name="pref_summary_mms_notification_vibrate_call">Να επιτρέπεται η δόνηση κατά τη διάρκεια μιας κλήσης</string>
+    <string name="pref_title_mms_notification_vibrate_custom">Προσαρμοσμένο μοτίβο δόνησης</string>
+    <string name="pref_text_mms_notification_vibrate_custom">Μορφή: off/on σε millisecond: off, on, off, on, ...</string>
+
+    <!-- Extra Settings: -->
+    <string name="pref_extra_settings">Επιπλέον ρυθμίσεις</string>
+
+    <!-- Strip unicode -->
+    <string name="pref_title_strip_unicode">Αφαίρεση unicode</string>
+    <string name="pref_summary_strip_unicode">Αντικατάσταση χαρακτήρων που δεν υποστηρίζονται σε SMS 160 χαρακτήρων</string>
+
+    <!-- Enable emojis -->
+    <string name="pref_title_enable_emojis">Υποστήριξη emoji</string>
+    <string name="pref_summary_enable_emojis">Ενεργοποιήστε την υποστήριξη για τα unicode emojis, ένα σύνολο από 471 ωραία emoticons</string>
+
+    <!-- Full timestamps -->
+    <string name="pref_title_mms_full_timestamp">Πλήρες timestamps</string>
+    <string name="pref_summary_mms_full_timestamp">Εμφάνιση της ημερομηνίας και της ώρας στα timestamps</string>
+    <!-- Which timestamps -->
+    <string name="pref_title_mms_use_sent_timestamp">Αρχικά timestamps</string>
+    <string name="pref_summary_mms_use_sent_timestamp">Εμφάνιση ημερομηνίας αποστολής, αντί της ημερομηνίας παραλαβής στα timestamps</string>
+
+    <!-- Settings item for the soft keyboard picker -->
+    <string name="pref_title_input_type">Τύπος πληκτρολογίου</string>
+    <string name="pref_summary_input_type">Επιλέξτε τον τύπο πληκτρολογίου που θα χρησιμοποιείται κατά τη σύνταξη μηνυμάτων</string>
+
+    <!-- Soft Keyboard Type -->
+    <string name="pref_keyboard_emoji">Εμφάνιση πλήκτρου Emoticons</string>
+    <string name="pref_keyboard_new_line">Εμφάνιση πλήκτρου Enter</string>
+    <string name="pref_keyboard_unknown">Άγνωστο, παρακαλώ επανεπιλέξτε</string>
+
+    <!-- QUICKMESSAGE SUPPORT -->
+    <!-- Preferences -->
+    <string name="pref_quickmessage">Γρήγορα μηνύματα και απάντηση</string>
+    <string name="pref_quickmessage_title">Εμφάνιση γρήγορων μηνυμάτων</string>
+    <string name="pref_quickmessage_summary">Εμφάνιση αναδυόμενου μηνύματος για τα εισερχόμενα SMS</string>
+    <string name="pref_wake_unlock_title">Ξύπνημα και ξεκλείδωμα</string>
+    <string name="pref_wake_unlock_summary">Ξύπνημα και ξεκλείδωμα της συσκευής σε εισερχόμενο μήνυμα (μόνο για οθόνη κλειδώματος χωρίς ασφάλεια)</string>
+    <string name="pref_close_all_title">Κλείσιμο όλων</string>
+    <string name="pref_close_all_summary">Το κουμπί κλείσιμο κλείνει όλα τα μηνύματα</string>
+    <string name="pref_dark_theme_title">Χρήση σκοτεινού θέματος</string>
+    <string name="pref_dark_theme_summary">Αν δεν επιλεχθέι, το προεπιλεγμένο \'ανοιχτόχρωμο\' θέμα θα χρησιμοποιηθεί</string>
+    <string name="message_counter_separator">από</string>
+
+    <!-- QM Dialog box buttons -->
+    <string name="button_close">Κλείσιμο</string>
+    <string name="button_view">Εμφάνιση</string>
+    <string name="button_templates">Πρότυπα</string>
+
+    <!-- Hint text in message body field when keyboard is exposed -->
+    <string name="type_to_reply_text_enter_to_send">Πληκτρολογήστε για να απαντήσετε</string>
+
+    <!-- QM Toast -->
+    <string name="toast_sending_message">Το μήνυμα αποστέλλεται</string>
+
+    <!-- QM - Quick reply -->
+    <string name="qm_quick_reply">Γρήγορη απάντηση</string>
+
+    <!-- Add menu for 'Add SMS to calendar remind' -->
+    <string name="menu_add_to_calendar">Προσθήκη στο ημερολόγιο</string>
 </resources>

@@ -21,13 +21,11 @@ import java.io.IOException;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
-import com.android.internal.telephony.TelephonyProperties;
-
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.content.res.XmlResourceParser;
-import android.preference.PreferenceManager;
 import android.util.Log;
+
+import com.android.internal.telephony.TelephonyProperties;
 
 public class MmsConfig {
     private static final String TAG = "MmsConfig";
@@ -65,26 +63,21 @@ public class MmsConfig {
     private static boolean mNotifyWapMMSC = false;
     private static boolean mAllowAttachAudio = true;
 
-    // See the comment below for mEnableMultipartSMS.
-    
-    private static int mSmsToMmsTextThresholdMin = 1;            // default value
-    private static int mSmsToMmsTextThresholdMax = 100;          // default value
-
-    // This flag is somewhat confusing. If mEnableMultipartSMS is true, long sms messages are
-    // always sent as multi-part sms messages, with no checked limit on the number of segments.
-    // If mEnableMultipartSMS is false, then mSmsToMmsTextThreshold is used to determine the
-    // limit of the number of sms segments before turning the long sms message into an mms
-    // message. For example, if mSmsToMmsTextThreshold is 4, then a long sms message with three
-    // or fewer segments will be sent as a multi-part sms. When the user types more characters
-    // to cause the message to be 4 segments or more, the send button will show the MMS tag to
-    // indicate the message will be sent as an mms.
+    // If mEnableMultipartSMS is true, long sms messages are always sent as multi-part sms
+    // messages, with no checked limit on the number of segments.
+    // If mEnableMultipartSMS is false, then as soon as the user types a message longer
+    // than a single segment (i.e. 140 chars), then the message will turn into and be sent
+    // as an mms message. This feature exists for carriers that don't support multi-part sms's.
     private static boolean mEnableMultipartSMS = true;
-
+    
     // By default, the radio splits multipart sms, not the application. If the carrier or radio
     // does not support this, and the recipient gets garbled text, set this to true. If this is
     // true and mEnableMultipartSMS is false, the mSmsToMmsTextThreshold will be observed,
     // converting to mms if we reach the required number of segments.
     private static boolean mEnableSplitSMS = false;
+
+    // Support to hide sprint VVM's 9016 text mesages.
+    private static boolean mEnableSprintVVM = false;
 
     // If mEnableMultipartSMS is true and mSmsToMmsTextThreshold > 1, then multi-part SMS messages
     // will be converted into a single mms message. For example, if the mms_config.xml file
@@ -111,6 +104,12 @@ public class MmsConfig {
     private static int mMaxSubjectLength = 40;  // maximum number of characters allowed for mms
                                                 // subject
 
+    // If mEnableGroupMms is true, a message with multiple recipients, regardless of contents,
+    // will be sent as a single MMS message with multiple "TO" fields set for each recipient.
+    // If mEnableGroupMms is false, the group MMS setting/preference will be hidden in the settings
+    // activity.
+    private static boolean mEnableGroupMms = true;
+
     public static void init(Context context) {
         if (LOCAL_LOGV) {
             Log.v(TAG, "MmsConfig.init()");
@@ -124,15 +123,6 @@ public class MmsConfig {
 
     public static int getSmsToMmsTextThreshold() {
         return mSmsToMmsTextThreshold;
-    }
-    public static void setSmsToMmsTextThreshold(int threshold) {
-        mSmsToMmsTextThreshold = threshold;
-    }
-    public static int getSmsToMmsTextThresholdMin() {
-        return mSmsToMmsTextThresholdMin;
-    }
-    public static int getSmsToMmsTextThresholdMax() {
-        return mSmsToMmsTextThresholdMax;
     }
 
     public static boolean getMmsEnabled() {
@@ -222,12 +212,13 @@ public class MmsConfig {
     public static boolean getMultipartSmsEnabled() {
         return mEnableMultipartSMS;
     }
-    public static void setEnableMultipartSMS(boolean enable) {
-        mEnableMultipartSMS = enable;
-    }
 
     public static boolean getSplitSmsEnabled() {
         return mEnableSplitSMS;
+    }
+
+    public static boolean getSprintVVMEnabled() {
+        return mEnableSprintVVM;
     }
 
     public static boolean getSlideDurationEnabled() {
@@ -272,6 +263,10 @@ public class MmsConfig {
 
     public static int getMaxSubjectLength() {
         return mMaxSubjectLength;
+    }
+
+    public static boolean getGroupMmsEnabled() {
+        return mEnableGroupMms;
     }
 
     public static final void beginDocument(XmlPullParser parser, String firstElementName) throws XmlPullParserException, IOException
@@ -341,6 +336,8 @@ public class MmsConfig {
                             mEnableMultipartSMS = "true".equalsIgnoreCase(text);
                         } else if ("enableSplitSMS".equalsIgnoreCase(value)) {
                             mEnableSplitSMS = "true".equalsIgnoreCase(text);
+                        } else if ("enableSprintVVM".equalsIgnoreCase(value)) {
+                            mEnableSprintVVM = "true".equalsIgnoreCase(text);
                         } else if ("enableSlideDuration".equalsIgnoreCase(value)) {
                             mEnableSlideDuration = "true".equalsIgnoreCase(text);
                         } else if ("enableMMSReadReports".equalsIgnoreCase(value)) {
@@ -349,6 +346,8 @@ public class MmsConfig {
                             mEnableSMSDeliveryReports = "true".equalsIgnoreCase(text);
                         } else if ("enableMMSDeliveryReports".equalsIgnoreCase(value)) {
                             mEnableMMSDeliveryReports = "true".equalsIgnoreCase(text);
+                        } else if ("enableGroupMms".equalsIgnoreCase(value)) {
+                            mEnableGroupMms = "true".equalsIgnoreCase(text);
                         }
                     } else if ("int".equals(tag)) {
                         // int config tags go here
@@ -406,10 +405,6 @@ public class MmsConfig {
                     }
                 }
             }
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-            //as the checkbox is checked when the boolean is supposed to be false, double negation :
-            mEnableMultipartSMS = !prefs.getBoolean("pref_key_sms_EnableMultipartSMS", !getMultipartSmsEnabled());
-            mSmsToMmsTextThreshold = prefs.getInt("pref_key_sms_SmsToMmsTextThreshold", getSmsToMmsTextThreshold());
         } catch (XmlPullParserException e) {
             Log.e(TAG, "loadMmsSettings caught ", e);
         } catch (NumberFormatException e) {

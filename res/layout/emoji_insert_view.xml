@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
     <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent" >
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" >
 
         <GridView
             android:id="@+id/emoji_grid_view"
@@ -10,7 +10,7 @@
             android:layout_above="@+id/emoji_button"
             android:layout_alignParentLeft="true"
             android:layout_alignParentTop="true"
-            android:numColumns="auto_fit" 
+            android:numColumns="auto_fit"
             android:columnWidth="50dip" />
 
         <EditText

@@ -31,22 +31,25 @@ import android.content.Intent;
 import android.content.Loader;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Parcelable;
+import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.ContactsContract.Profile;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.text.InputFilter;
+import android.text.InputFilter.LengthFilter;
+import android.text.InputType;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
-import android.text.InputFilter.LengthFilter;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -57,9 +60,12 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.Button;
 import android.widget.CursorAdapter;
 import android.widget.EditText;
@@ -71,8 +77,6 @@ import android.widget.QuickContactBadge;
 import android.widget.SimpleAdapter;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
-import android.widget.AdapterView.OnItemClickListener;
-import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.TextView.OnEditorActionListener;
 import android.widget.Toast;
 
@@ -84,7 +88,6 @@ import com.android.mms.data.ContactList;
 import com.android.mms.data.Conversation;
 import com.android.mms.data.Conversation.ConversationQueryHandler;
 import com.android.mms.templates.TemplatesProvider.Template;
-import com.android.mms.themes.ThemesMessageList;
 import com.android.mms.transaction.MessagingNotification;
 import com.android.mms.transaction.MessagingNotification.NotificationInfo;
 import com.android.mms.transaction.SmsMessageSender;
@@ -120,7 +123,9 @@ public class QuickMessagePopup extends Activity implements
     public static final String SMS_NOTIFICATION_OBJECT_EXTRA =
             "com.android.mms.NOTIFICATION_OBJECT";
     public static final String SMS_MESSAGE_URI_EXTRA =
-       "com.android.mms.SMS_MESSAGE_URI";
+            "com.android.mms.SMS_MESSAGE_URI";
+    public static final String QR_SHOW_KEYBOARD_EXTRA =
+            "com.android.mms.QR_SHOW_KEYBOARD";
 
     // Templates support
     private static final int DIALOG_TEMPLATE_SELECT        = 1;
@@ -140,6 +145,7 @@ public class QuickMessagePopup extends Activity implements
     private Context mContext;
     private boolean mScreenUnlocked = false;
     private KeyguardManager mKeyguardManager = null;
+    private PowerManager mPowerManager;
 
     // Message list items
     private ArrayList<QuickMessage> mMessageList;
@@ -153,15 +159,16 @@ public class QuickMessagePopup extends Activity implements
     private boolean mFullTimestamp = false;
     private boolean mStripUnicode = false;
     private boolean mEnableEmojis = false;
+    private int mInputMethod;
 
     // Message pager
     private ViewPager mMessagePager;
     private MessagePagerAdapter mPagerAdapter;
 
     // Options menu items
-    private static final int MENU_INSERT_SMILEY         = 1;
-    private static final int MENU_INSERT_EMOJI          = 3;
-    private static final int MENU_ADD_TEMPLATE          = 2;
+    private static final int MENU_INSERT_SMILEY = 1;
+    private static final int MENU_INSERT_EMOJI = 3;
+    private static final int MENU_ADD_TEMPLATE = 2;
 
     // Smiley and Emoji support
     private AlertDialog mSmileyDialog;
@@ -170,9 +177,9 @@ public class QuickMessagePopup extends Activity implements
 
     private static final int MESSAGE_LIST_QUERY_TOKEN = 9527;
     private static final int MESSAGE_LIST_QUERY_AFTER_DELETE_TOKEN = 9528;
- 
+ 	
     private static final int DELETE_MESSAGE_TOKEN  = 9700;
- 
+	
     private BackgroundQueryHandler cqh; 
 
     @Override
@@ -184,6 +191,8 @@ public class QuickMessagePopup extends Activity implements
         mMessageList = new ArrayList<QuickMessage>();
         mDefaultContactImage = getResources().getDrawable(R.drawable.ic_contact_picture);
         mNumTemplates = getTemplatesCount();
+        mPowerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        mKeyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
 
         // Get the preferences
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
@@ -193,6 +202,8 @@ public class QuickMessagePopup extends Activity implements
         mDarkTheme = prefs.getBoolean(MessagingPreferenceActivity.QM_DARK_THEME_ENABLED, false);
         mStripUnicode = prefs.getBoolean(MessagingPreferenceActivity.STRIP_UNICODE, false);
         mEnableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
+        mInputMethod = Integer.parseInt(prefs.getString(MessagingPreferenceActivity.INPUT_TYPE,
+                Integer.toString(InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE)));
 
         // Set the window features and layout
         requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -218,11 +229,13 @@ public class QuickMessagePopup extends Activity implements
         mViewButton = (Button) findViewById(R.id.button_view);
 
         // Set the theme color on the pager arrow
+        Resources res = getResources();
         if (mDarkTheme) {
-            mQmPagerArrow.setBackgroundColor(0xff040404); // dark theme
+            mQmPagerArrow.setBackgroundColor(res.getColor(R.color.quickmessage_body_dark_bg));
         } else {
-            mQmPagerArrow.setBackgroundColor(0xffefefef); // light theme
+            mQmPagerArrow.setBackgroundColor(res.getColor(R.color.quickmessage_body_light_bg));
         }
+
         // ViewPager Support
         mPagerAdapter = new MessagePagerAdapter();
         mMessagePager = (ViewPager) findViewById(R.id.message_pager);
@@ -254,16 +267,16 @@ public class QuickMessagePopup extends Activity implements
             }
         });
 
- // Delete button
-       mDeleteButton.setOnClickListener(new OnClickListener() {
-           @Override
-           public void onClick(View v) {
-                 int numMessages = mMessageList.size();
-                 QuickMessage qm = mMessageList.get(mCurrentPage);
-                 if (qm != null) {
-                     DeleteMessageListener l = new DeleteMessageListener(qm.getMessageUri(), qm, numMessages);
-                     confirmDeleteDialog(l, false);
-                     
+        // Delete button
+        mDeleteButton.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int numMessages = mMessageList.size();
+                QuickMessage qm = mMessageList.get(mCurrentPage);
+                if (qm != null) {
+                    DeleteMessageListener l = new DeleteMessageListener(qm.getMessageUri(), qm, numMessages);
+                    confirmDeleteDialog(l, false);
+                    
                 }
             }
         });
@@ -272,9 +285,22 @@ public class QuickMessagePopup extends Activity implements
         mViewButton.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
+
+                // Override the re-lock if the screen was unlocked
+                if (mScreenUnlocked) {
+                    // Cancel the receiver that will clear the wake locks
+                    ClearAllReceiver.removeCancel(getApplicationContext());
+                    ClearAllReceiver.clearAll(false);
+                    mScreenUnlocked = false;
+                }
+
+                // Trigger the view intent
                 mCurrentQm = mMessageList.get(mCurrentPage);
                 Intent vi = mCurrentQm.getViewIntent();
                 if (vi != null) {
+                    mCurrentQm.saveReplyText();
+                    vi.putExtra("sms_body", mCurrentQm.getReplyText());
+
                     startActivity(vi);
                 }
                 clearNotification(false);
@@ -283,7 +309,7 @@ public class QuickMessagePopup extends Activity implements
         });
     }
 
-    private class DeleteMessageListener implements DialogInterface.OnClickListener {
+     private class DeleteMessageListener implements DialogInterface.OnClickListener {
         private final String mMessageUri;
         private final QuickMessage mQm;
         private final int mNumMessages;
@@ -411,6 +437,11 @@ public class QuickMessagePopup extends Activity implements
                     extras.getString(SMS_FROM_NUMBER_EXTRA), extras.getString(SMS_MESSAGE_URI_EXTRA), nm);
             mMessageList.add(qm);
 
+            // If triggered from Quick Reply the keyboard should be visible immediately
+            if (extras.getBoolean(QR_SHOW_KEYBOARD_EXTRA, false)) {
+                getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+            }
+
             if (newMessage && mCurrentPage != -1) {
                 // There is already a message showing
                 // Stay on the current message
@@ -432,13 +463,6 @@ public class QuickMessagePopup extends Activity implements
     }
 
     @Override
-    public void onBackPressed() {
-        Log.d("CDA", "onBackPressed Called");
-        clearNotification(false);
-        finish();
-    }
-
-    @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         if (DEBUG)
@@ -449,6 +473,7 @@ public class QuickMessagePopup extends Activity implements
 
         // Load and display the new message
         parseIntent(intent.getExtras(), true);
+        unlockScreen();
     }
 
     @Override
@@ -471,7 +496,7 @@ public class QuickMessagePopup extends Activity implements
         if (mScreenUnlocked) {
             // Cancel the receiver that will clear the wake locks
             ClearAllReceiver.removeCancel(getApplicationContext());
-            ClearAllReceiver.clearAll(mScreenUnlocked);
+            ClearAllReceiver.clearAll(true);
         }
     }
 
@@ -599,7 +624,11 @@ public class QuickMessagePopup extends Activity implements
                     // Get the currently visible message and append the smiley
                     QuickMessage qm = mMessageList.get(mCurrentPage);
                     if (qm != null) {
-                        qm.getEditText().append(smiley);
+                        // add the smiley at the cursor location or replace selected
+                        int start = qm.getEditText().getSelectionStart();
+                        int end = qm.getEditText().getSelectionEnd();
+                        qm.getEditText().getText().replace(Math.min(start, end),
+                                Math.max(start, end), smiley);
                     }
 
                     dialog.dismiss();
@@ -648,7 +677,11 @@ public class QuickMessagePopup extends Activity implements
                     // Get the currently visible message and append the emoji
                     QuickMessage qm = mMessageList.get(mCurrentPage);
                     if (qm != null) {
-                        qm.getEditText().append(emoji);
+                        // add the emoji at the cursor location or replace selected
+                        int start = qm.getEditText().getSelectionStart();
+                        int end = qm.getEditText().getSelectionEnd();
+                        qm.getEditText().getText().replace(Math.min(start, end),
+                                Math.max(start, end), emoji);
                     }
                     mEmojiDialog.dismiss();
                     return true;
@@ -661,7 +694,11 @@ public class QuickMessagePopup extends Activity implements
                     // Get the currently visible message and append the emoji
                     QuickMessage qm = mMessageList.get(mCurrentPage);
                     if (qm != null) {
-                        qm.getEditText().append(editText.getText());
+                        // add the emoji at the cursor location or replace selected
+                        int start = qm.getEditText().getSelectionStart();
+                        int end = qm.getEditText().getSelectionEnd();
+                        qm.getEditText().getText().replace(Math.min(start, end),
+                                Math.max(start, end), editText.getText());
                     }
                     mEmojiDialog.dismiss();
                 }
@@ -680,7 +717,6 @@ public class QuickMessagePopup extends Activity implements
 
         mEmojiDialog.show();
     }
-
 
     /**
      * This method dismisses the on screen keyboard if it is visible for the supplied qm
@@ -706,9 +742,11 @@ public class QuickMessagePopup extends Activity implements
             return;
         }
 
-        // See if the screen is locked and get the wake lock to turn on the screen
-        mKeyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
-        if (mKeyguardManager.inKeyguardRestrictedInputMode()) {
+        // See if the screen is locked or if no lock set and the screen is off
+        // and get the wake lock to turn on the screen.
+        boolean isScreenOn = mPowerManager.isScreenOn();
+        boolean inKeyguardRestrictedInputMode = mKeyguardManager.inKeyguardRestrictedInputMode();
+        if (inKeyguardRestrictedInputMode || ((!inKeyguardRestrictedInputMode) && !isScreenOn)) {
             ManageWakeLock.acquireFull(mContext);
             mScreenUnlocked = true;
         }
@@ -902,8 +940,7 @@ public class QuickMessagePopup extends Activity implements
 
         if (!TextUtils.isEmpty(message)) {
             SmileyParser parser = SmileyParser.getInstance();
-            int recv = prefs.getInt(ThemesMessageList.PREF_RECV_SMILEY, 0xff33b5e5);
-            CharSequence smileyBody = parser.addSmileySpans(message, recv);
+            CharSequence smileyBody = parser.addSmileySpans(message);
             if (enableEmojis) {
                 EmojiParser emojiParser = EmojiParser.getInstance();
                 smileyBody = emojiParser.addEmojiSpans(smileyBody);
@@ -978,7 +1015,11 @@ public class QuickMessagePopup extends Activity implements
                        // Get the currently visible message and append text
                        QuickMessage qm = mMessageList.get(mCurrentPage);
                        if (qm != null) {
-                           qm.getEditText().append(text);
+                           // insert the template text at the cursor location or replace selected
+                           int start = qm.getEditText().getSelectionStart();
+                           int end = qm.getEditText().getSelectionEnd();
+                           qm.getEditText().getText().replace(Math.min(start, end),
+                                   Math.max(start, end), text);
                        }
                     }
                 });
@@ -1156,6 +1197,10 @@ public class QuickMessagePopup extends Activity implements
                 }
 
                 // Set the remaining values
+                qmReplyText.setInputType(InputType.TYPE_CLASS_TEXT | mInputMethod
+                        | InputType.TYPE_TEXT_FLAG_AUTO_CORRECT
+                        | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                        | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
                 qmReplyText.setText(qm.getReplyText());
                 qmReplyText.setSelection(qm.getReplyText().length());
                 qmReplyText.addTextChangedListener(new QmTextWatcher(mContext, qmTextCounter, qmSendButton,
@@ -1326,4 +1371,5 @@ public class QuickMessagePopup extends Activity implements
         @Override
         public void onPageScrolled(int arg0, float arg1, int arg2) {}
    }
+
 }
