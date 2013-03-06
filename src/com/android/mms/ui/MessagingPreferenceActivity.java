@@ -20,6 +20,7 @@ package com.android.mms.ui;
 import android.app.ActionBar;
 import android.app.AlertDialog;
 import android.app.Dialog;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -36,6 +37,7 @@ import android.preference.PreferenceScreen;
 import android.preference.Preference.OnPreferenceClickListener;
 import android.provider.SearchRecentSuggestions;
 import android.text.InputType;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -67,10 +69,11 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String RETRIEVAL_DURING_ROAMING = "pref_key_mms_retrieval_during_roaming";
     public static final String AUTO_DELETE              = "pref_key_auto_delete";
     public static final String GROUP_MMS_MODE           = "pref_key_mms_group_mms";
+    public static final String MMS_SAVE_LOCATION        = "pref_save_location";
 
     // Emoji and Unicode
     public static final String ENABLE_EMOJIS             = "pref_key_enable_emojis";
-    public static final String ENABLE_QUICK_EMOJIS      = "pref_key_emojis_quick";
+    public static final String ENABLE_QUICK_EMOJIS       = "pref_key_enable_quick_emojis";
     public static final String STRIP_UNICODE             = "pref_key_strip_unicode";
 
     // Split sms
@@ -91,6 +94,9 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String NOTIFICATION_VIBRATE_PATTERN_CUSTOM = "pref_key_mms_notification_vibrate_pattern_custom";
     public static final String NOTIFICATION_VIBRATE_CALL ="pre_key_mms_notification_vibrate_call";
 
+    // Privacy mode
+    public static final String PRIVACY_MODE_ENABLED = "pref_key_enable_privacy_mode";
+
     // Keyboard input type
     public static final String INPUT_TYPE                = "pref_key_mms_input_type";
 
@@ -100,8 +106,11 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String QM_CLOSE_ALL_ENABLED      = "pref_key_close_all";
     public static final String QM_DARK_THEME_ENABLED     = "pref_dark_theme";
 
+    private static final String DIRECT_CALL_PREF         = "direct_call_pref";
+    public static final String MESSAGE_FONT_SIZE         = "pref_key_mms_message_font_size";
+
     // Menu entries
-    private static final int MENU_RESTORE_DEFAULTS    = 1;
+    private static final int MENU_RESTORE_DEFAULTS       = 1;
 
     private Preference mSmsLimitPref;
     private Preference mSmsDeliveryReportPref;
@@ -114,6 +123,7 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private Preference mClearHistoryPref;
     private ListPreference mVibrateWhenPref;
     private CheckBoxPreference mEnableNotificationsPref;
+    private CheckBoxPreference mEnablePrivacyModePref;
     private CheckBoxPreference mMmsAutoRetrievialPref;
     private Recycler mSmsRecycler;
     private Recycler mMmsRecycler;
@@ -133,6 +143,8 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private CheckBoxPreference mEnableQmLockscreenPref;
     private CheckBoxPreference mEnableQmCloseAllPref;
     private CheckBoxPreference mEnableQmDarkThemePref;
+
+    private CheckBoxPreference mDirectCall;
 
     @Override
     protected void onCreate(Bundle icicle) {
@@ -166,11 +178,15 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         mMmsReadReportPref = findPreference("pref_key_mms_read_reports");
         mMmsLimitPref = findPreference("pref_key_mms_delete_limit");
         mClearHistoryPref = findPreference("pref_key_mms_clear_history");
+    mDirectCall = (CheckBoxPreference) findPreference("direct_call_pref");
         mEnableNotificationsPref = (CheckBoxPreference) findPreference(NOTIFICATION_ENABLED);
+        mEnablePrivacyModePref = (CheckBoxPreference) findPreference(PRIVACY_MODE_ENABLED);
         mMmsAutoRetrievialPref = (CheckBoxPreference) findPreference(AUTO_RETRIEVAL);
         mVibrateWhenPref = (ListPreference) findPreference(NOTIFICATION_VIBRATE_WHEN);
         mManageTemplate = findPreference(MANAGE_TEMPLATES);
         mGestureSensitivity = (ListPreference) findPreference(GESTURE_SENSITIVITY);
+
+       
 
         // QuickMessage
         mEnableQuickMessagePref = (CheckBoxPreference) findPreference(QUICKMESSAGE_ENABLED);
@@ -255,6 +271,9 @@ public class MessagingPreferenceActivity extends PreferenceActivity
 
         setEnabledNotificationsPref();
 
+        // Privacy mode
+        setEnabledPrivacyModePref();
+
         // QuickMessage
         setEnabledQuickMessagePref();
         setEnabledQmLockscreenPref();
@@ -315,6 +334,21 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         // The "enable notifications" setting is really stored in our own prefs. Read the
         // current value and set the checkbox to match.
         mEnableNotificationsPref.setChecked(getNotificationEnabled(this));
+    }
+
+    private void setEnabledPrivacyModePref() {
+        // The "enable privacy mode" setting is really stored in our own prefs. Read the
+        // current value and set the checkbox to match.
+        boolean isPrivacyModeEnabled = getPrivacyModeEnabled(this);
+        mEnablePrivacyModePref.setChecked(isPrivacyModeEnabled);
+
+        // Enable/Disable the "enable quickmessage" setting according to
+        // the "enable privacy mode" setting state
+        mEnableQuickMessagePref.setEnabled(!isPrivacyModeEnabled);
+
+        // Enable/Disable the "enable dark theme" setting according to
+        // the "enable privacy mode" setting state
+        mEnableQmDarkThemePref.setEnabled(!isPrivacyModeEnabled);
     }
 
     private void setEnabledQuickMessagePref() {
@@ -406,6 +440,16 @@ public class MessagingPreferenceActivity extends PreferenceActivity
             // Update the actual "enable notifications" value that is stored in secure settings.
             enableNotifications(mEnableNotificationsPref.isChecked(), this);
 
+        } else if (preference == mEnablePrivacyModePref) {
+            // Update the actual "enable private mode" value that is stored in secure settings.
+            enablePrivacyMode(mEnablePrivacyModePref.isChecked(), this);
+
+            // Update "enable quickmessage" checkbox state
+            mEnableQuickMessagePref.setEnabled(!mEnablePrivacyModePref.isChecked());
+
+            // Update "enable dark theme" checkbox state
+            mEnableQmDarkThemePref.setEnabled(!mEnablePrivacyModePref.isChecked());
+
         } else if (preference == mEnableQuickMessagePref) {
             // Update the actual "enable quickmessage" value that is stored in secure settings.
             enableQuickMessage(mEnableQuickMessagePref.isChecked(), this);
@@ -496,6 +540,21 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         editor.apply();
     }
 
+    public static boolean getPrivacyModeEnabled(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean privacyModeEnabled =
+            prefs.getBoolean(MessagingPreferenceActivity.PRIVACY_MODE_ENABLED, false);
+        return privacyModeEnabled;
+    }
+
+    public static void enablePrivacyMode(boolean enabled, Context context) {
+        // Store the value of private mode in SharedPreferences
+        SharedPreferences.Editor editor =
+            PreferenceManager.getDefaultSharedPreferences(context).edit();
+        editor.putBoolean(MessagingPreferenceActivity.PRIVACY_MODE_ENABLED, enabled);
+        editor.apply();
+    }
+
     public static boolean getQuickMessageEnabled(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         boolean quickMessageEnabled =
@@ -551,6 +610,27 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         boolean qmDarkThemeEnabled =
             prefs.getBoolean(MessagingPreferenceActivity.QM_DARK_THEME_ENABLED, false);
         return qmDarkThemeEnabled;
+    }
+
+    public static boolean getGroupMMSEnabled(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean groupMMSEnabled = prefs.getBoolean(MessagingPreferenceActivity.GROUP_MMS_MODE, false);
+        return groupMMSEnabled;
+    }
+
+    public static void enableGroupMMS(boolean enabled, Context context) {
+        // Store the value of GroupMMS in SharedPreferences
+        SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(context).edit();
+
+        editor.putBoolean(MessagingPreferenceActivity.GROUP_MMS_MODE, enabled);
+
+        editor.apply();
+    }
+
+    public static boolean getDirectCallEnabled(Context context) {
+    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+    boolean directCallEnabled = prefs.getBoolean(MessagingPreferenceActivity.DIRECT_CALL_PREF,false);
+    return directCallEnabled;
     }
 
     private void registerListeners() {

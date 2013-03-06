@@ -17,9 +17,9 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:state_pressed="false"
-        android:drawable="@drawable/panel_picture_frame_bg_normal" />
+        android:drawable="@android:drawable/picture_frame" />
 
     <item
         android:state_pressed="true"
-        android:drawable="@drawable/panel_picture_frame_bg_pressed_blue" />
+        android:drawable="@drawable/list_pressed_holo_light" />
 </selector>

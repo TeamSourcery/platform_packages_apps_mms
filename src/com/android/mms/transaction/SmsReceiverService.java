@@ -53,6 +53,7 @@ import android.widget.Toast;
 
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.mms.LogTag;
+import com.android.mms.MmsConfig;
 import com.android.mms.R;
 import com.android.mms.data.Contact;
 import com.android.mms.data.Conversation;
@@ -211,9 +212,14 @@ public class SmsReceiverService extends Service {
                     handleSendMessage();
                 }
             }
-            // NOTE: We MUST not call stopSelf() directly, since we need to
-            // make sure the wake lock acquired by AlertReceiver is released.
-            SmsReceiver.finishStartingService(SmsReceiverService.this, serviceId);
+
+            // Stop service only if there's no outstanding messages being sent, otherwise
+            // mSending state is lost and multiple messages may be dispatched at once.
+            if (!mSending) {
+                // NOTE: We MUST not call stopSelf() directly, since we need to
+                // make sure the wake lock acquired by AlertReceiver is released.
+                SmsReceiver.finishStartingService(SmsReceiverService.this, serviceId);
+            }
         }
     }
 
@@ -272,6 +278,12 @@ public class SmsReceiverService extends Service {
                         mSending = false;
                         messageFailedToSend(msgUri, SmsManager.RESULT_ERROR_GENERIC_FAILURE);
                         success = false;
+                        // Sending current message fails. Try to send more pending messages
+                        // if there is any.
+                        sendBroadcast(new Intent(SmsReceiverService.ACTION_SEND_MESSAGE,
+                                null,
+                                this,
+                                SmsReceiver.class));
                     }
                 }
             } finally {
@@ -435,6 +447,9 @@ public class SmsReceiverService extends Service {
             return null;
         } else if (sms.isReplace()) {
             return replaceMessage(context, msgs, error);
+        } else if (MmsConfig.getSprintVVMEnabled() &&
+                   sms.getOriginatingAddress().contentEquals("9016")) {
+            return null;
         } else {
             return storeMessage(context, msgs, error);
         }

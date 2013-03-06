@@ -19,17 +19,6 @@
  */
 -->
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <Preference
-        android:title="@string/themes"
-	android:summary="@string/themes_summary"
-        android:key="pref_themes">
-        <intent
-            android:action="android.intent.action.MAIN"
-            android:targetClass="com.android.mms.themes.Themes"
-            android:targetPackage="com.android.mms" />
-    </Preference>
-
   <PreferenceCategory android:title="@string/pref_sms_storage_title"
                       android:key="pref_key_storage_settings">
 <!--
@@ -116,6 +105,13 @@
             android:key="pref_key_mms_retrieval_during_roaming"
             android:title="@string/pref_title_mms_retrieval_during_roaming"
             android:summary="@string/pref_summary_mms_retrieval_during_roaming" />
+
+        <EditTextPreference
+            android:key="pref_save_location"
+            android:title="@string/pref_title_save_location"
+            android:summary="@string/pref_title_save_location_summary"
+            android:dialogTitle="@string/pref_title_save_location"
+            android:defaultValue="download" />
     </PreferenceCategory>
 
     <!-- Notification Settings -->
@@ -125,6 +121,14 @@
             android:title="@string/pref_title_notification_enabled"
             android:summary="@string/pref_summary_notification_enabled"
             android:defaultValue="true" />
+
+       <CheckBoxPreference
+            android:key="pref_key_enable_privacy_mode"
+            android:layout="?android:attr/preferenceLayoutChild"
+            android:dependency="pref_key_enable_notifications"
+            android:defaultValue="false"
+            android:title="@string/pref_title_notification_privacy_mode_enabled"
+            android:summary="@string/pref_summary_notification_privacy_mode_enabled" />
 
         <RingtonePreference
             android:layout="?android:attr/preferenceLayoutChild"
@@ -232,11 +236,12 @@
             android:summary="@string/pref_summary_enable_emojis"
             android:defaultValue="false" />
 
-        <CheckBoxPreference android:key="pref_key_emojis_quick"
- 	   android:title="@string/pref_title_pref_key_emojis_quick"
-           android:summary="@string/pref_summary_pref_key_emojis_quick"
-           android:dependency="pref_key_enable_emojis"
-           android:defaultValue="false" />
+        <CheckBoxPreference
+            android:key="pref_key_enable_quick_emojis"
+            android:title="@string/pref_title_enable_quick_emojis"
+            android:summary="@string/pref_summary_enable_quick_emojis"
+            android:dependency="pref_key_enable_emojis"
+            android:defaultValue="false" />
 
         <CheckBoxPreference
             android:key="pref_key_mms_full_timestamp"
@@ -256,5 +261,17 @@
             android:summary="@string/pref_summary_input_type"
             android:entries="@array/pref_entries_input_type"
             android:entryValues="@array/pref_values_input_type" />
-    </PreferenceCategory>
+        <CheckBoxPreference
+            android:key="direct_call_pref"
+            android:title="@string/direct_call_title"
+            android:summary="@string/direct_call_summary"/>
+        <ListPreference
+            android:key="pref_key_mms_message_font_size"
+            android:defaultValue="18"
+            android:title="@string/pref_title_mms_message_font_size"
+            android:summary="@string/pref_summary_mms_message_font_size"
+            android:entries="@array/pref_mms_message_font_size_entries"
+            android:entryValues="@array/pref_mms_message_font_size_values"
+            android:dialogTitle="@string/pref_dialogtitle_mms_message_font_size"/>
+  </PreferenceCategory>
 </PreferenceScreen>

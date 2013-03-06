@@ -16,14 +16,11 @@
 
 package com.android.mms.widget;
 
-import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.database.Cursor;
-import android.preference.PreferenceManager;
 import android.provider.Telephony.Threads;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -31,7 +28,6 @@ import android.text.style.ForegroundColorSpan;
 import android.text.style.TextAppearanceSpan;
 import android.util.Log;
 import android.view.View;
-import android.widget.ImageView;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 
@@ -39,10 +35,8 @@ import com.android.mms.LogTag;
 import com.android.mms.R;
 import com.android.mms.data.Contact;
 import com.android.mms.data.Conversation;
-import com.android.mms.themes.ThemesWidgets;
 import com.android.mms.ui.ConversationList;
 import com.android.mms.ui.ConversationListItem;
-import com.android.mms.ui.MessageItem;
 import com.android.mms.ui.MessageUtils;
 import com.android.mms.util.SmileyParser;
 
@@ -67,9 +61,6 @@ public class MmsWidgetService extends RemoteViewsService {
      */
     private static class MmsFactory
             implements RemoteViewsService.RemoteViewsFactory, Contact.UpdateListener {
-
-
-        private String layoutType;
         private static final int MAX_CONVERSATIONS_COUNT = 25;
         private final Context mContext;
         private final int mAppWidgetId;
@@ -83,19 +74,9 @@ public class MmsWidgetService extends RemoteViewsService {
         private static int SUBJECT_TEXT_COLOR_UNREAD;
         private static int SENDERS_TEXT_COLOR_READ;
         private static int SENDERS_TEXT_COLOR_UNREAD;
-        private static int DATE_TEXT_COLOR_READ;
-        private static int DATE_TEXT_COLOR_UNREAD;
-        private static int WIDGET_READ_BG;
-        private static int WIDGET_UNREAD_BG;
-
-        private SharedPreferences sp;
-        private MessageItem mMessageItem;
 
         public MmsFactory(Context context, Intent intent) {
             mContext = context;
-
-            sp = PreferenceManager.getDefaultSharedPreferences(mContext);
-            layoutType = sp.getString(ThemesWidgets.PREF_WIDGET_LAYOUT, "**dark**");
             mAppWidgetId = intent.getIntExtra(
                     AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
             mAppWidgetManager = AppWidgetManager.getInstance(context);
@@ -104,12 +85,10 @@ public class MmsWidgetService extends RemoteViewsService {
             }
             // Initialize colors
             Resources res = context.getResources();
-            SENDERS_TEXT_COLOR_READ = sp.getInt(ThemesWidgets.PREF_SENDERS_TEXTCOLOR_READ, 0xffefefef);
-            SENDERS_TEXT_COLOR_UNREAD = sp.getInt(ThemesWidgets.PREF_SENDERS_TEXTCOLOR_UNREAD, 0xffefefef);
-            SUBJECT_TEXT_COLOR_READ = sp.getInt(ThemesWidgets.PREF_SUBJECT_TEXTCOLOR_READ, 0xffcfcfcf);
-            SUBJECT_TEXT_COLOR_UNREAD = sp.getInt(ThemesWidgets.PREF_SUBJECT_TEXTCOLOR_UNREAD, 0xffcfcfcf);
-            DATE_TEXT_COLOR_READ = sp.getInt(ThemesWidgets.PREF_DATE_TEXTCOLOR_READ, 0xffbfbfbf);
-            DATE_TEXT_COLOR_UNREAD = sp.getInt(ThemesWidgets.PREF_DATE_TEXTCOLOR_UNREAD, 0xffbfbfbf);
+            SENDERS_TEXT_COLOR_READ = res.getColor(R.color.widget_sender_text_color_read);
+            SENDERS_TEXT_COLOR_UNREAD = res.getColor(R.color.widget_sender_text_color_unread);
+            SUBJECT_TEXT_COLOR_READ = res.getColor(R.color.widget_subject_text_color_read);
+            SUBJECT_TEXT_COLOR_UNREAD = res.getColor(R.color.widget_subject_text_color_unread);
         }
 
         @Override
@@ -204,8 +183,9 @@ public class MmsWidgetService extends RemoteViewsService {
             if (Log.isLoggable(LogTag.WIDGET, Log.VERBOSE)) {
                 Log.v(TAG, "getConversationCount");
             }
-
-            return Math.min(mConversationCursor.getCount(), MAX_CONVERSATIONS_COUNT);
+            synchronized (sWidgetLock) {
+                return Math.min(mConversationCursor.getCount(), MAX_CONVERSATIONS_COUNT);
+            }
         }
 
         /*
@@ -245,14 +225,9 @@ public class MmsWidgetService extends RemoteViewsService {
                 Conversation conv = Conversation.from(mContext, mConversationCursor);
 
                 // Inflate and fill out the remote view
-                RemoteViews remoteViews;
-                if (layoutType.equals("**light**")) {
-                    remoteViews = new RemoteViews(mContext.getPackageName(),
-                            R.layout.widget_conversation_light);
-                } else {
-                    remoteViews = new RemoteViews(mContext.getPackageName(),
-                            R.layout.widget_conversation);
-                }
+                RemoteViews remoteViews = new RemoteViews(
+                        mContext.getPackageName(), R.layout.widget_conversation);
+
                 if (conv.hasUnreadMessages()) {
                     remoteViews.setViewVisibility(R.id.widget_unread_background, View.VISIBLE);
                     remoteViews.setViewVisibility(R.id.widget_read_background, View.GONE);
@@ -267,8 +242,8 @@ public class MmsWidgetService extends RemoteViewsService {
                 // Date
                 remoteViews.setTextViewText(R.id.date,
                         addColor(MessageUtils.formatTimeStampString(mContext, conv.getDate()),
-                                conv.hasUnreadMessages() ? DATE_TEXT_COLOR_UNREAD :
-                                    DATE_TEXT_COLOR_READ));
+                                conv.hasUnreadMessages() ? SUBJECT_TEXT_COLOR_UNREAD :
+                                    SUBJECT_TEXT_COLOR_READ));
 
                 // From
                 int color = conv.hasUnreadMessages() ? SENDERS_TEXT_COLOR_UNREAD :
@@ -326,11 +301,8 @@ public class MmsWidgetService extends RemoteViewsService {
             RemoteViews view = new RemoteViews(mContext.getPackageName(), R.layout.widget_loading);
             view.setTextViewText(
                     R.id.loading_text, mContext.getText(R.string.view_more_conversations));
-            PendingIntent pendingIntent =
-                    PendingIntent.getActivity(mContext, 0, new Intent(mContext,
-                            ConversationList.class),
-                            PendingIntent.FLAG_UPDATE_CURRENT);
-            view.setOnClickPendingIntent(R.id.widget_loading, pendingIntent);
+            view.setOnClickFillInIntent(R.id.widget_loading,
+                   new Intent(mContext, ConversationList.class));
             return view;
         }
 
@@ -361,12 +333,8 @@ public class MmsWidgetService extends RemoteViewsService {
             if (Log.isLoggable(LogTag.WIDGET, Log.VERBOSE)) {
                 Log.v(TAG, "onLoadComplete");
             }
-            RemoteViews remoteViews;
-            if (layoutType.equals("**light**")) {
-                remoteViews = new RemoteViews(mContext.getPackageName(), R.layout.widget_light);
-            } else {
-                remoteViews = new RemoteViews(mContext.getPackageName(), R.layout.widget);
-            }
+            RemoteViews remoteViews = new RemoteViews(mContext.getPackageName(), R.layout.widget);
+
             remoteViews.setViewVisibility(R.id.widget_unread_count, mUnreadConvCount > 0 ?
                     View.VISIBLE : View.GONE);
             if (mUnreadConvCount > 0) {

@@ -64,12 +64,14 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.android.mms.LogTag;
+import com.android.mms.MmsConfig;
 import com.android.mms.R;
 import com.android.mms.data.Contact;
 import com.android.mms.data.Conversation;
 import com.android.mms.data.WorkingMessage;
 import com.android.mms.model.SlideModel;
 import com.android.mms.model.SlideshowModel;
+import com.android.mms.quickmessage.QmMarkRead;
 import com.android.mms.quickmessage.QuickMessagePopup;
 import com.android.mms.ui.ComposeMessageActivity;
 import com.android.mms.ui.ConversationList;
@@ -110,7 +112,7 @@ public class MessagingNotification {
 
     // This must be consistent with the column constants below.
     private static final String[] SMS_STATUS_PROJECTION = new String[] {
-        Sms.THREAD_ID, Sms.DATE, Sms.ADDRESS, Sms.SUBJECT, Sms.BODY, Sms._ID };
+        Sms.THREAD_ID, Sms.DATE, Sms.ADDRESS, Sms.SUBJECT, Sms.BODY };
 
     // These must be consistent with MMS_STATUS_PROJECTION and
     // SMS_STATUS_PROJECTION.
@@ -121,7 +123,6 @@ public class MessagingNotification {
     private static final int COLUMN_SUBJECT     = 3;
     private static final int COLUMN_SUBJECT_CS  = 4;
     private static final int COLUMN_SMS_BODY    = 4;
-    private static final int COLUMN_SMS_ID      = 5;
 
     private static final String[] SMS_THREAD_ID_PROJECTION = new String[] { Sms.THREAD_ID };
     private static final String[] MMS_THREAD_ID_PROJECTION = new String[] { Mms.THREAD_ID };
@@ -359,7 +360,6 @@ public class MessagingNotification {
         public final int mAttachmentType;
         public final String mSubject;
         public final long mThreadId;
-        public final String mMessageUri;
 
         /**
          * @param isSms true if sms, false if mms
@@ -379,7 +379,7 @@ public class MessagingNotification {
                 Intent clickIntent, String message, String subject,
                 CharSequence ticker, long timeMillis, String title,
                 Bitmap attachmentBitmap, Contact sender,
-                int attachmentType, long threadId, String messageUri) {
+                int attachmentType, long threadId) {
             mIsSms = isSms;
             mClickIntent = clickIntent;
             mMessage = message;
@@ -391,7 +391,6 @@ public class MessagingNotification {
             mSender = sender;
             mAttachmentType = attachmentType;
             mThreadId = threadId;
-            mMessageUri = messageUri;
         }
 
         public long getTime() {
@@ -514,7 +513,6 @@ public class MessagingNotification {
             arg0.writeParcelable(mAttachmentBitmap, 0);
             arg0.writeInt(mAttachmentType);
             arg0.writeLong(mThreadId);
-            arg0.writeString(mMessageUri);
         }
 
         public NotificationInfo(Parcel in) {
@@ -529,7 +527,6 @@ public class MessagingNotification {
             mSender = null;
             mAttachmentType = in.readInt();
             mThreadId = in.readLong();
-            mMessageUri = in.readString();
         }
 
         public static final Parcelable.Creator<NotificationInfo> CREATOR = new Parcelable.Creator<NotificationInfo>() {
@@ -673,7 +670,6 @@ public class MessagingNotification {
                         address,
                         messageBody, subject,
                         threadId,
-                        msgUri.toString(),
                         timeMillis,
                         attachedPicture,
                         contact,
@@ -755,9 +751,6 @@ public class MessagingNotification {
 
         try {
             while (cursor.moveToNext()) {
-                long msgId = cursor.getLong(COLUMN_SMS_ID);
- 	          Uri msgUri = Sms.CONTENT_URI.buildUpon().appendPath(
- 	               Long.toString(msgId)).build();
                 String address = cursor.getString(COLUMN_SMS_ADDRESS);
 
                 Contact contact = Contact.get(address, false);
@@ -779,7 +772,7 @@ public class MessagingNotification {
 
                 NotificationInfo info = getNewMessageNotificationInfo(context, true /* isSms */,
                         address, message, null /* subject */,
-                        threadId, msgUri.toString(), timeMillis, null /* attachmentBitmap */,
+                        threadId, timeMillis, null /* attachmentBitmap */,
                         contact, WorkingMessage.TEXT);
 
                 notificationSet.add(info);
@@ -799,11 +792,13 @@ public class MessagingNotification {
             String message,
             String subject,
             long threadId,
-            String messageUri,
             long timeMillis,
             Bitmap attachmentBitmap,
             Contact contact,
             int attachmentType) {
+        if (MmsConfig.getSprintVVMEnabled() && address.contentEquals("9016")) {
+            return null;
+        }
         Intent clickIntent = ComposeMessageActivity.createIntent(context, threadId);
         clickIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                 | Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -815,10 +810,9 @@ public class MessagingNotification {
                 0, senderInfo.length() - 2);
         CharSequence ticker = buildTickerMessage(
                 context, address, subject, message);
-
         return new NotificationInfo(isSms,
                 clickIntent, message, subject, ticker, timeMillis,
-                senderInfoName, attachmentBitmap, contact, attachmentType, threadId, messageUri);
+                senderInfoName, attachmentBitmap, contact, attachmentType, threadId);
     }
 
     public static void cancelNotification(Context context, int notificationId) {
@@ -878,8 +872,14 @@ public class MessagingNotification {
         final Notification.Builder noti = new Notification.Builder(context)
                 .setWhen(mostRecentNotification.mTimeMillis);
 
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean privacyMode = sp.getBoolean(MessagingPreferenceActivity.PRIVACY_MODE_ENABLED, false);
         if (isNew) {
-            noti.setTicker(mostRecentNotification.mTicker);
+            if (!privacyMode) {
+                noti.setTicker(mostRecentNotification.mTicker);
+            } else {
+                noti.setTicker(context.getString(R.string.notification_ticker_privacy_mode));
+            }
         }
         TaskStackBuilder taskStackBuilder = TaskStackBuilder.create(context);
 
@@ -895,6 +895,7 @@ public class MessagingNotification {
 
         final Resources res = context.getResources();
         String title = null;
+        String privateModeContentText = null;
         Bitmap avatar = null;
         if (uniqueThreadCount > 1) {    // messages from multiple threads
             Intent mainActivityIntent = new Intent(Intent.ACTION_MAIN);
@@ -905,28 +906,43 @@ public class MessagingNotification {
 
             mainActivityIntent.setType("vnd.android-dir/mms-sms");
             taskStackBuilder.addNextIntent(mainActivityIntent);
-            title = context.getString(R.string.message_count_notification, messageCount);
+            if (!privacyMode) {
+                title = context.getString(R.string.message_count_notification, messageCount);
+            } else {
+                title = context.getString(R.string.notification_multiple_title_privacy_mode);
+                privateModeContentText = context.getString(R.string.notification_multiple_text_privacy_mode, messageCount);
+            }
         } else {    // same thread, single or multiple messages
-            title = mostRecentNotification.mTitle;
-            BitmapDrawable contactDrawable = (BitmapDrawable)mostRecentNotification.mSender
-                    .getAvatar(context, null);
-            if (contactDrawable != null) {
-                // Show the sender's avatar as the big icon. Contact bitmaps are 96x96 so we
-                // have to scale 'em up to 128x128 to fill the whole notification large icon.
-                avatar = contactDrawable.getBitmap();
-                if (avatar != null) {
-                    final int idealIconHeight =
-                        res.getDimensionPixelSize(android.R.dimen.notification_large_icon_height);
-                    final int idealIconWidth =
-                         res.getDimensionPixelSize(android.R.dimen.notification_large_icon_width);
-                    if (avatar.getHeight() < idealIconHeight) {
-                        // Scale this image to fit the intended size
-                        avatar = Bitmap.createScaledBitmap(
-                                avatar, idealIconWidth, idealIconHeight, true);
-                    }
+            if (!privacyMode) {
+                title = mostRecentNotification.mTitle;
+                BitmapDrawable contactDrawable = (BitmapDrawable)mostRecentNotification.mSender
+                        .getAvatar(context, null);
+                if (contactDrawable != null) {
+                    // Show the sender's avatar as the big icon. Contact bitmaps are 96x96 so we
+                    // have to scale 'em up to 128x128 to fill the whole notification large icon.
+                    avatar = contactDrawable.getBitmap();
                     if (avatar != null) {
-                        noti.setLargeIcon(avatar);
+                        final int idealIconHeight =
+                            res.getDimensionPixelSize(android.R.dimen.notification_large_icon_height);
+                        final int idealIconWidth =
+                             res.getDimensionPixelSize(android.R.dimen.notification_large_icon_width);
+                        if (avatar.getHeight() < idealIconHeight) {
+                            // Scale this image to fit the intended size
+                            avatar = Bitmap.createScaledBitmap(
+                                    avatar, idealIconWidth, idealIconHeight, true);
+                        }
+                        if (avatar != null) {
+                            noti.setLargeIcon(avatar);
+                        }
                     }
+                }
+            } else {
+                if (messageCount > 1) {
+                    title = context.getString(R.string.notification_multiple_title_privacy_mode);
+                    privateModeContentText = context.getString(R.string.notification_multiple_text_privacy_mode, messageCount);
+                } else {
+                    title = context.getString(R.string.notification_single_title_privacy_mode);
+                    privateModeContentText = context.getString(R.string.notification_single_text_privacy_mode);
                 }
             }
 
@@ -950,7 +966,6 @@ public class MessagingNotification {
         int defaults = 0;
 
         if (isNew) {
-            SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
             String vibrateWhen;
             if (sp.contains(MessagingPreferenceActivity.NOTIFICATION_VIBRATE_WHEN)) {
                 vibrateWhen =
@@ -995,8 +1010,8 @@ public class MessagingNotification {
             }
         }
 
-        // Set light defaults
         defaults |= Notification.DEFAULT_LIGHTS;
+
         noti.setDefaults(defaults);
 
         // set up delete intent
@@ -1008,8 +1023,8 @@ public class MessagingNotification {
 
         // Set up the QuickMessage intent
         Intent qmIntent = null;
-        if (mostRecentNotification.mIsSms) {
-            // QuickMessage support is only for SMS
+        if (mostRecentNotification.mIsSms && !privacyMode) {
+            // QuickMessage support is only for SMS when privacy mode is disabled
             qmIntent = new Intent();
             qmIntent.setClass(context, QuickMessagePopup.class);
             qmIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP |
@@ -1017,146 +1032,162 @@ public class MessagingNotification {
             qmIntent.putExtra(QuickMessagePopup.SMS_FROM_NAME_EXTRA, mostRecentNotification.mSender.getName());
             qmIntent.putExtra(QuickMessagePopup.SMS_FROM_NUMBER_EXTRA, mostRecentNotification.mSender.getNumber());
             qmIntent.putExtra(QuickMessagePopup.SMS_NOTIFICATION_OBJECT_EXTRA, mostRecentNotification);
-            qmIntent.putExtra(QuickMessagePopup.SMS_MESSAGE_URI_EXTRA, mostRecentNotification.mMessageUri);
         }
 
         // Start getting the notification ready
         final Notification notification;
 
-        if (messageCount == 1 || uniqueThreadCount == 1) {
-            // Add the QuickMessage action only if the pop-up won't be shown already
-            if (!qmPopupEnabled && qmIntent != null) {
+        if (!privacyMode) {
+            if (messageCount == 1 || uniqueThreadCount == 1) {
+                // Add the Quick Reply action only if the pop-up won't be shown already
+                if (!qmPopupEnabled && qmIntent != null) {
 
-                // This is a QR, we should show the keyboard when the user taps to reply
-                qmIntent.putExtra(QuickMessagePopup.QR_SHOW_KEYBOARD_EXTRA, true);
+                    // This is a QR, we should show the keyboard when the user taps to reply
+                    qmIntent.putExtra(QuickMessagePopup.QR_SHOW_KEYBOARD_EXTRA, true);
 
-                // Create the pending intent and add it to the notification
-                CharSequence qmText = context.getText(R.string.qm_quick_reply);
-                PendingIntent qmPendingIntent = PendingIntent.getActivity(context, 0, qmIntent,
+                    // Create the Quick reply pending intent and add it to the notification
+                    CharSequence qmText = context.getText(R.string.qm_quick_reply);
+                    PendingIntent qmPendingIntent = PendingIntent.getActivity(context, 0, qmIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT);
+                    noti.addAction(R.drawable.ic_reply, qmText, qmPendingIntent);
+                }
+
+                // Add the 'Mark as read' action
+                CharSequence markReadText = context.getText(R.string.qm_mark_read);
+                Intent mrIntent = new Intent();
+                mrIntent.setClass(context, QmMarkRead.class);
+                mrIntent.putExtra(QmMarkRead.SMS_THREAD_ID, mostRecentNotification.mThreadId);
+                PendingIntent mrPendingIntent = PendingIntent.getBroadcast(context, 0, mrIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT);
-                noti.addAction(R.drawable.ic_reply, qmText, qmPendingIntent);
+                noti.addAction(R.drawable.ic_menu_done_holo_dark, markReadText, mrPendingIntent);
+
+                // Add the Call action
+                CharSequence callText = context.getText(R.string.menu_call);
+                Intent callIntent = new Intent(Intent.ACTION_CALL);
+                callIntent.setData(mostRecentNotification.mSender.getPhoneUri());
+                PendingIntent callPendingIntent = PendingIntent.getActivity(context, 0, callIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT);
+                noti.addAction(R.drawable.ic_menu_call, callText, callPendingIntent);
+
             }
 
-            // Add the Call action
-            CharSequence callText = context.getText(R.string.menu_call);
-            Intent callIntent = new Intent(Intent.ACTION_CALL);
-            callIntent.setData(mostRecentNotification.mSender.getPhoneUri());
-            PendingIntent mCallPendingIntent = PendingIntent.getActivity(context, 0, callIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT);
-            noti.addAction(R.drawable.ic_menu_call, callText, mCallPendingIntent);
-        }
+            if (messageCount == 1) {
+                // We've got a single message
 
-        if (messageCount == 1) {
-            // We've got a single message
+                // This sets the text for the collapsed form:
+                noti.setContentText(mostRecentNotification.formatBigMessage(context));
 
-            // This sets the text for the collapsed form:
-            noti.setContentText(mostRecentNotification.formatBigMessage(context));
+                if (mostRecentNotification.mAttachmentBitmap != null) {
+                    // The message has a picture, show that
 
-            if (mostRecentNotification.mAttachmentBitmap != null) {
-                // The message has a picture, show that
-
-                notification = new Notification.BigPictureStyle(noti)
-                    .bigPicture(mostRecentNotification.mAttachmentBitmap)
-                    // This sets the text for the expanded picture form:
-                    .setSummaryText(mostRecentNotification.formatPictureMessage(context))
-                    .build();
+                    notification = new Notification.BigPictureStyle(noti)
+                        .bigPicture(mostRecentNotification.mAttachmentBitmap)
+                        // This sets the text for the expanded picture form:
+                        .setSummaryText(mostRecentNotification.formatPictureMessage(context))
+                        .build();
+                } else {
+                    // Show a single notification -- big style with the text of the whole message
+                    notification = new Notification.BigTextStyle(noti)
+                        .bigText(mostRecentNotification.formatBigMessage(context))
+                        .build();
+                }
+                if (DEBUG) {
+                    Log.d(TAG, "updateNotification: single message notification");
+                }
             } else {
-                // Show a single notification -- big style with the text of the whole message
-                notification = new Notification.BigTextStyle(noti)
-                    .bigText(mostRecentNotification.formatBigMessage(context))
-                    .build();
+                // We've got multiple messages
+                if (uniqueThreadCount == 1) {
+                    // We've got multiple messages for the same thread.
+                    // Starting with the oldest new message, display the full text of each message.
+                    // Begin a line for each subsequent message.
+                    SpannableStringBuilder buf = new SpannableStringBuilder();
+                    NotificationInfo infos[] =
+                            notificationSet.toArray(new NotificationInfo[messageCount]);
+                    int len = infos.length;
+                    for (int i = len - 1; i >= 0; i--) {
+                        NotificationInfo info = infos[i];
+
+                        buf.append(info.formatBigMessage(context));
+
+                        if (i != 0) {
+                            buf.append('\n');
+                        }
+                    }
+
+                    noti.setContentText(context.getString(R.string.message_count_notification,
+                            messageCount));
+
+                    // Show a single notification -- big style with the text of all the messages
+                    notification = new Notification.BigTextStyle(noti)
+                        .bigText(buf)
+                        // Forcibly show the last line, with the app's smallIcon in it, if we
+                        // kicked the smallIcon out with an avatar bitmap
+                        .setSummaryText((avatar == null) ? null : " ")
+                        .build();
+                    if (DEBUG) {
+                        Log.d(TAG, "updateNotification: multi messages for single thread");
+                    }
+                } else {
+                    // Build a set of the most recent notification per threadId.
+                    HashSet<Long> uniqueThreads = new HashSet<Long>(messageCount);
+                    ArrayList<NotificationInfo> mostRecentNotifPerThread =
+                            new ArrayList<NotificationInfo>();
+                    Iterator<NotificationInfo> notifications = notificationSet.iterator();
+                    while (notifications.hasNext()) {
+                        NotificationInfo notificationInfo = notifications.next();
+                        if (!uniqueThreads.contains(notificationInfo.mThreadId)) {
+                            uniqueThreads.add(notificationInfo.mThreadId);
+                            mostRecentNotifPerThread.add(notificationInfo);
+                        }
+                    }
+                    // When collapsed, show all the senders like this:
+                    //     Fred Flinstone, Barry Manilow, Pete...
+                    noti.setContentText(formatSenders(context, mostRecentNotifPerThread));
+                    Notification.InboxStyle inboxStyle = new Notification.InboxStyle(noti);
+
+                    // We have to set the summary text to non-empty so the content text doesn't show
+                    // up when expanded.
+                    inboxStyle.setSummaryText(" ");
+
+                    // At this point we've got multiple messages in multiple threads. We only
+                    // want to show the most recent message per thread, which are in
+                    // mostRecentNotifPerThread.
+                    int uniqueThreadMessageCount = mostRecentNotifPerThread.size();
+                    int maxMessages = Math.min(MAX_MESSAGES_TO_SHOW, uniqueThreadMessageCount);
+
+                    for (int i = 0; i < maxMessages; i++) {
+                        NotificationInfo info = mostRecentNotifPerThread.get(i);
+                        inboxStyle.addLine(info.formatInboxMessage(context));
+                    }
+                    notification = inboxStyle.build();
+                    if (DEBUG) {
+                        Log.d(TAG, "updateNotification: multi messages," +
+                                " showing inboxStyle notification");
+                    }
+                }
             }
-            if (DEBUG) {
-                Log.d(TAG, "updateNotification: single message notification");
+
+            // Trigger the QuickMessage pop-up activity if enabled
+            // But don't show the QuickMessage if the user is in a call or the phone is ringing
+            if (qmPopupEnabled && qmIntent != null) {
+                TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
+                if (tm.getCallState() == TelephonyManager.CALL_STATE_IDLE && !ConversationList.mIsRunning && !ComposeMessageActivity.mIsRunning) {
+                    // Since a QM Popup may wake and unlock we need to prevent the light from being dismissed
+                    notification.flags |= Notification.FLAG_FORCE_LED_SCREEN_OFF;
+
+                    // Show the popup
+                    context.startActivity(qmIntent);
+                }
             }
         } else {
-            // We've got multiple messages
-            if (uniqueThreadCount == 1) {
-                // We've got multiple messages for the same thread.
-                // Starting with the oldest new message, display the full text of each message.
-                // Begin a line for each subsequent message.
-                SpannableStringBuilder buf = new SpannableStringBuilder();
-                NotificationInfo infos[] =
-                        notificationSet.toArray(new NotificationInfo[messageCount]);
-                int len = infos.length;
-                for (int i = len - 1; i >= 0; i--) {
-                    NotificationInfo info = infos[i];
-
-                    buf.append(info.formatBigMessage(context));
-
-                    if (i != 0) {
-                        buf.append('\n');
-                    }
-                }
-
-                noti.setContentText(context.getString(R.string.message_count_notification,
-                        messageCount));
-
-                // Show a single notification -- big style with the text of all the messages
-                notification = new Notification.BigTextStyle(noti)
-                    .bigText(buf)
-                    // Forcibly show the last line, with the app's smallIcon in it, if we
-                    // kicked the smallIcon out with an avatar bitmap
-                    .setSummaryText((avatar == null) ? null : " ")
-                    .build();
-                if (DEBUG) {
-                    Log.d(TAG, "updateNotification: multi messages for single thread");
-                }
-            } else {
-                // Build a set of the most recent notification per threadId.
-                HashSet<Long> uniqueThreads = new HashSet<Long>(messageCount);
-                ArrayList<NotificationInfo> mostRecentNotifPerThread =
-                        new ArrayList<NotificationInfo>();
-                Iterator<NotificationInfo> notifications = notificationSet.iterator();
-                while (notifications.hasNext()) {
-                    NotificationInfo notificationInfo = notifications.next();
-                    if (!uniqueThreads.contains(notificationInfo.mThreadId)) {
-                        uniqueThreads.add(notificationInfo.mThreadId);
-                        mostRecentNotifPerThread.add(notificationInfo);
-                    }
-                }
-                // When collapsed, show all the senders like this:
-                //     Fred Flinstone, Barry Manilow, Pete...
-                noti.setContentText(formatSenders(context, mostRecentNotifPerThread));
-                Notification.InboxStyle inboxStyle = new Notification.InboxStyle(noti);
-
-                // We have to set the summary text to non-empty so the content text doesn't show
-                // up when expanded.
-                inboxStyle.setSummaryText(" ");
-
-                // At this point we've got multiple messages in multiple threads. We only
-                // want to show the most recent message per thread, which are in
-                // mostRecentNotifPerThread.
-                int uniqueThreadMessageCount = mostRecentNotifPerThread.size();
-                int maxMessages = Math.min(MAX_MESSAGES_TO_SHOW, uniqueThreadMessageCount);
-
-                for (int i = 0; i < maxMessages; i++) {
-                    NotificationInfo info = mostRecentNotifPerThread.get(i);
-                    inboxStyle.addLine(info.formatInboxMessage(context));
-                }
-                notification = inboxStyle.build();
-                if (DEBUG) {
-                    Log.d(TAG, "updateNotification: multi messages," +
-                            " showing inboxStyle notification");
-                }
-            }
-        }
-
-        // Trigger the QuickMessage pop-up activity if enabled
-        // But don't show the QuickMessage if the user is in a call or the phone is ringing
-        if (qmPopupEnabled && qmIntent != null) {
-            TelephonyManager tm = (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
-            if (tm.getCallState() == TelephonyManager.CALL_STATE_IDLE && !ConversationList.mIsRunning && !ComposeMessageActivity.mIsRunning) {
-                // Since a QM Popup may wake and unlock we need to prevent the light from being dismissed
-                notification.flags |= Notification.FLAG_FORCE_LED_SCREEN_OFF;
-
-                // Show the popup
-                context.startActivity(qmIntent);
-            }
+            // Show a standard notification in privacy mode
+            noti.setContentText(privateModeContentText);
+            notification = noti.build();
         }
 
         // Post the notification
         nm.notify(NOTIFICATION_ID, notification);
+
     }
 
     protected static CharSequence buildTickerMessage(

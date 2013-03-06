@@ -23,15 +23,12 @@ import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.net.Uri;
-import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.RemoteViews;
 
 import com.android.mms.LogTag;
 import com.android.mms.R;
-import com.android.mms.themes.ThemesWidgets;
 import com.android.mms.ui.ComposeMessageActivity;
 import com.android.mms.ui.ConversationList;
 
@@ -70,10 +67,8 @@ public class MmsWidgetProvider extends AppWidgetProvider {
                     MmsWidgetProvider.class));
 
             // We need to update all Mms appwidgets on the home screen.
-            for (int appWidgetId : appWidgetIds) {
-                appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId,
-                        R.id.conversation_list);
-            }
+            appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds,
+                    R.id.conversation_list);
         } else {
             super.onReceive(context, intent);
         }
@@ -86,14 +81,7 @@ public class MmsWidgetProvider extends AppWidgetProvider {
         if (Log.isLoggable(LogTag.WIDGET, Log.VERBOSE)) {
             Log.v(TAG, "updateWidget appWidgetId: " + appWidgetId);
         }
-        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
-        String layoutType = sp.getString(ThemesWidgets.PREF_WIDGET_LAYOUT, "**dark**");
-        RemoteViews remoteViews;
-        if (layoutType.equals("**light**")) {
-            remoteViews = new RemoteViews(context.getPackageName(), R.layout.widget_light);
-        } else {
-            remoteViews = new RemoteViews(context.getPackageName(), R.layout.widget);
-        }
+        RemoteViews remoteViews = new RemoteViews(context.getPackageName(), R.layout.widget);
         PendingIntent clickIntent;
 
         // Launch an intent to avoid ANRs

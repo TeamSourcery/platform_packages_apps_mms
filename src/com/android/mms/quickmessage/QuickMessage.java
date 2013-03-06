@@ -24,17 +24,15 @@ import com.android.mms.transaction.MessagingNotification.NotificationInfo;
 public class QuickMessage {
     private String mFromName;
     private String[] mFromNumber;
-    private String mMessageUri;
     private NotificationInfo mContent;
     private String mReplyText;
     private long mTimestamp;
     private EditText mEditText = null;
 
-    public QuickMessage(String fromName, String fromNumber, String messageUri, NotificationInfo nInfo) {
+    public QuickMessage(String fromName, String fromNumber, NotificationInfo nInfo) {
         mFromName = fromName;
         mFromNumber = new String[1];
         mFromNumber[0] = fromNumber;
-        mMessageUri = messageUri;
         mContent = nInfo;
         mReplyText = "";
         mTimestamp = nInfo.mTimeMillis;
@@ -54,10 +52,6 @@ public class QuickMessage {
 
     public String[] getFromNumber() {
         return mFromNumber;
-    }
-
-    public String getMessageUri() {
-        return mMessageUri;
     }
 
     public String getMessageBody() {

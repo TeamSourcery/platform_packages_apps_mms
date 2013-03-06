@@ -22,8 +22,6 @@ import android.app.Dialog;
 import android.app.KeyguardManager;
 import android.app.LoaderManager;
 import android.app.NotificationManager;
-import android.content.AsyncQueryHandler;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.CursorLoader;
 import android.content.DialogInterface;
@@ -34,8 +32,6 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.drawable.Drawable;
-import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.os.PowerManager;
@@ -80,19 +76,14 @@ import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import android.widget.Toast;
 
-import com.android.mms.LogTag;
 import com.android.mms.MmsConfig;
 import com.android.mms.R;
 import com.android.mms.data.Contact;
-import com.android.mms.data.ContactList;
 import com.android.mms.data.Conversation;
-import com.android.mms.data.Conversation.ConversationQueryHandler;
 import com.android.mms.templates.TemplatesProvider.Template;
 import com.android.mms.transaction.MessagingNotification;
 import com.android.mms.transaction.MessagingNotification.NotificationInfo;
 import com.android.mms.transaction.SmsMessageSender;
-import com.android.mms.ui.ComposeMessageActivity;
-import com.android.mms.ui.ConversationList;
 import com.android.mms.ui.ImageAdapter;
 import com.android.mms.ui.MessageUtils;
 import com.android.mms.ui.MessagingPreferenceActivity;
@@ -105,6 +96,7 @@ import java.nio.charset.CharsetEncoder;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -122,10 +114,14 @@ public class QuickMessagePopup extends Activity implements
             "com.android.mms.SMS_FROM_NUMBER";
     public static final String SMS_NOTIFICATION_OBJECT_EXTRA =
             "com.android.mms.NOTIFICATION_OBJECT";
-    public static final String SMS_MESSAGE_URI_EXTRA =
-            "com.android.mms.SMS_MESSAGE_URI";
     public static final String QR_SHOW_KEYBOARD_EXTRA =
             "com.android.mms.QR_SHOW_KEYBOARD";
+
+    // Message removal
+    public static final String QR_REMOVE_MESSAGES_EXTRA =
+            "com.android.mms.QR_REMOVE_MESSAGES";
+    public static final String QR_THREAD_ID_EXTRA =
+            "com.android.mms.QR_THREAD_ID";
 
     // Templates support
     private static final int DIALOG_TEMPLATE_SELECT        = 1;
@@ -137,7 +133,6 @@ public class QuickMessagePopup extends Activity implements
     private ImageView mQmPagerArrow;
     private TextView mQmMessageCounter;
     private Button mCloseButton;
-    private Button mDeleteButton;
     private Button mViewButton;
 
     // General items
@@ -175,13 +170,6 @@ public class QuickMessagePopup extends Activity implements
     private AlertDialog mEmojiDialog;
     private View mEmojiView;
 
-    private static final int MESSAGE_LIST_QUERY_TOKEN = 9527;
-    private static final int MESSAGE_LIST_QUERY_AFTER_DELETE_TOKEN = 9528;
- 	
-    private static final int DELETE_MESSAGE_TOKEN  = 9700;
-	
-    private BackgroundQueryHandler cqh; 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -209,8 +197,6 @@ public class QuickMessagePopup extends Activity implements
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.dialog_quickmessage);
 
-        cqh = new BackgroundQueryHandler(getContentResolver());
-
         // Turn on the Options Menu
         invalidateOptionsMenu();
 
@@ -225,7 +211,6 @@ public class QuickMessagePopup extends Activity implements
         mQmPagerArrow = (ImageView) findViewById(R.id.pager_arrow);
         mQmMessageCounter = (TextView) findViewById(R.id.message_counter);
         mCloseButton = (Button) findViewById(R.id.button_close);
-        mDeleteButton = (Button) findViewById(R.id.button_delete);
         mViewButton = (Button) findViewById(R.id.button_view);
 
         // Set the theme color on the pager arrow
@@ -267,20 +252,6 @@ public class QuickMessagePopup extends Activity implements
             }
         });
 
-        // Delete button
-        mDeleteButton.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                int numMessages = mMessageList.size();
-                QuickMessage qm = mMessageList.get(mCurrentPage);
-                if (qm != null) {
-                    DeleteMessageListener l = new DeleteMessageListener(qm.getMessageUri(), qm, numMessages);
-                    confirmDeleteDialog(l, false);
-                    
-                }
-            }
-        });
-
         // View button
         mViewButton.setOnClickListener(new OnClickListener() {
             @Override
@@ -309,156 +280,49 @@ public class QuickMessagePopup extends Activity implements
         });
     }
 
-     private class DeleteMessageListener implements DialogInterface.OnClickListener {
-        private final String mMessageUri;
-        private final QuickMessage mQm;
-        private final int mNumMessages;
-
-        public DeleteMessageListener(String messageUri, QuickMessage qm, int numMessages) {
-            mMessageUri = messageUri;
-            mQm = qm;
-            mNumMessages = numMessages;
-        }
-
-        @Override
-        public void onClick(DialogInterface dialog, int whichButton) {
-            dialog.dismiss();
-            new AsyncTask<Void, Void, Void>() {
-		                protected Void doInBackground(Void... none) {
-		                	cqh.startDelete(DELETE_MESSAGE_TOKEN,
-		                            null, Uri.parse(mMessageUri),
-		                            "locked=0", null);
-		                    return null;
-		                }
-		            }.execute();
-		            if (mCloseClosesAll || mNumMessages == 1) {
-	                    clearNotification(true);
-	                    finish();
-	                } else {
-	                    // Dismiss the keyboard if it is shown
-	                    if (mQm != null) {
-	                        dismissKeyboard(mQm);
-
-	                        if (mCurrentPage < mNumMessages-1) {
-	                            showNextMessageWithRemove(mQm);
-	                        } else {
-	                            showPreviousMessageWithRemove(mQm);
-	                        }
-	                    }
-	                }
-        }
-    }
-
-    private void confirmDeleteDialog(DialogInterface.OnClickListener listener, boolean locked) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setCancelable(true);
-        builder.setMessage(locked ? R.string.confirm_delete_locked_message :
-                    R.string.confirm_delete_message);
-        builder.setPositiveButton(R.string.delete, listener);
-        builder.setNegativeButton(R.string.no, null);
-        builder.show();
-    }
-    
-    private final class BackgroundQueryHandler extends ConversationQueryHandler {
-        public BackgroundQueryHandler(ContentResolver contentResolver) {
-            super(contentResolver);
-        }
-
-        @Override
-        protected void onQueryComplete(int token, Object cookie, Cursor cursor) {
-        	long tid = 0;
-            switch(token) {
-                case ConversationList.HAVE_LOCKED_MESSAGES_TOKEN:
-                    @SuppressWarnings("unchecked")
-                    ArrayList<Long> threadIds = (ArrayList<Long>)cookie;
-                    ConversationList.confirmDeleteThreadDialog(
-                            new ConversationList.DeleteThreadListener(threadIds,
-                                cqh, QuickMessagePopup.this),
-                            threadIds,
-                            cursor != null && cursor.getCount() > 0,
-                            QuickMessagePopup.this);
-                    if (cursor != null) {
-                        cursor.close();
-                    }
-                    break;
-
-                case MESSAGE_LIST_QUERY_AFTER_DELETE_TOKEN:
-                    // check consistency between the query result and 'mConversation'
-                    tid = (Long) cookie;
-
-                    if (cursor == null) {
-                        return;
-                    }
-                    if (tid > 0 && cursor.getCount() == 0) {
-                        // We just deleted the last message and the thread will get deleted
-                        // by a trigger in the database. Clear the threadId so next time we
-                        // need the threadId a new thread will get created.
-                        Conversation conv = Conversation.get(QuickMessagePopup.this, tid,
-                                false);
-                        if (conv != null) {
-                            conv.clearThreadId();
-                            conv.setDraftState(false);
-                        }
-                    }
-                    cursor.close();
-            }
-        }
-
-        @Override
-        protected void onDeleteComplete(int token, Object cookie, int result) {
-            super.onDeleteComplete(token, cookie, result);
-            switch(token) {
-                case DELETE_MESSAGE_TOKEN:
-                    // Update the notification for new messages since they
-                    // may be deleted.
-                    MessagingNotification.nonBlockingUpdateNewMessageIndicator(
-                    		QuickMessagePopup.this, MessagingNotification.THREAD_NONE, false);
-                    // Update the notification for failed messages since they
-                    // may be deleted.
-                    //updateSendFailedNotification();
-                    // Return to message list if the last message on thread is being deleted
-                    //if (mMsgListAdapter.getCount() == 1) {
-                    //    finish();
-                    //}
-                    break;
-            }
-        }
-    }
-
     private void parseIntent(Bundle extras, boolean newMessage) {
         if (extras == null) {
             return;
         }
 
-        // Parse the intent and ensure we have a notification object to work with
-        NotificationInfo nm = (NotificationInfo) extras.getParcelable(SMS_NOTIFICATION_OBJECT_EXTRA);
-        if (nm != null) {
-            QuickMessage qm = new QuickMessage(extras.getString(SMS_FROM_NAME_EXTRA),
-                    extras.getString(SMS_FROM_NUMBER_EXTRA), extras.getString(SMS_MESSAGE_URI_EXTRA), nm);
-            mMessageList.add(qm);
-
-            // If triggered from Quick Reply the keyboard should be visible immediately
-            if (extras.getBoolean(QR_SHOW_KEYBOARD_EXTRA, false)) {
-                getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+        // Check if we are being called to remove messages already showing
+        if (extras.getBoolean(QR_REMOVE_MESSAGES_EXTRA, false)) {
+            // Get the ID
+            long threadId = extras.getLong(QR_THREAD_ID_EXTRA, -1);
+            if (threadId != -1) {
+                removeMatchingMessages(threadId);
             }
+        } else {
+            // Parse the intent and ensure we have a notification object to work with
+            NotificationInfo nm = (NotificationInfo) extras.getParcelable(SMS_NOTIFICATION_OBJECT_EXTRA);
+            if (nm != null) {
+                QuickMessage qm = new QuickMessage(extras.getString(SMS_FROM_NAME_EXTRA),
+                        extras.getString(SMS_FROM_NUMBER_EXTRA), nm);
+                mMessageList.add(qm);
 
-            if (newMessage && mCurrentPage != -1) {
-                // There is already a message showing
-                // Stay on the current message
-                mMessagePager.setCurrentItem(mCurrentPage);
-            } else {
-                // Set the current message to the last message received
-                mCurrentPage = mMessageList.size()-1;
-                mMessagePager.setCurrentItem(mCurrentPage);
+                // If triggered from Quick Reply the keyboard should be visible immediately
+                if (extras.getBoolean(QR_SHOW_KEYBOARD_EXTRA, false)) {
+                    getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+                }
+
+                if (newMessage && mCurrentPage != -1) {
+                    // There is already a message showing
+                    // Stay on the current message
+                    mMessagePager.setCurrentItem(mCurrentPage);
+                } else {
+                    // Set the current message to the last message received
+                    mCurrentPage = mMessageList.size()-1;
+                    mMessagePager.setCurrentItem(mCurrentPage);
+                }
+
+                if (DEBUG)
+                    Log.d(LOG_TAG, "parseIntent(): New message from " + qm.getFromName().toString()
+                            + " added. Number of messages = " + mMessageList.size()
+                            + ". Displaying page #" + (mCurrentPage+1));
+
+                // Make sure the counter is accurate
+                updateMessageCounter();
             }
-
-            if (DEBUG)
-                Log.d(LOG_TAG, "parseIntent(): New message from " + qm.getFromName().toString()
-                        + " added. Number of messages = " + mMessageList.size()
-                        + ". Displaying page #" + (mCurrentPage+1));
-
-            // Make sure the counter is accurate
-            updateMessageCounter();
         }
     }
 
@@ -814,6 +678,37 @@ public class QuickMessagePopup extends Activity implements
             Log.d(LOG_TAG, "updatePages(): Removed message " + removeMsg.getThreadId()
                     + " and changed to page #" + (gotoPage+1) + ". Remaining messages = "
                     + mMessageList.size());
+    }
+
+    /**
+     * Remove all matching quickmessages for the supplied thread id
+     *
+     * @param threadId
+     */
+    public void removeMatchingMessages(long threadId) {
+        if (DEBUG)
+            Log.d(LOG_TAG, "removeMatchingMessages() looking for match with threadID = " + threadId);
+
+        Iterator<QuickMessage> itr = mMessageList.iterator();
+        QuickMessage qmElement = null;
+
+        // Iterate through the list and remove the messages that match
+        while(itr.hasNext()){
+            qmElement = itr.next();
+            if(qmElement.getThreadId() == threadId) {
+                itr.remove();
+            }
+        }
+
+        // See if there are any remaining messages and update the pager
+        if (mMessageList.size() > 0) {
+            mPagerAdapter.notifyDataSetChanged();
+            mMessagePager.setCurrentItem(1); // First message
+            updateMessageCounter();
+        } else {
+            // we are done
+            finish();
+        }
     }
 
     /**
