@@ -172,17 +172,10 @@
     <string name="pref_title_sms_delete" msgid="6890538316799296878">"Limit textových zpráv"</string>
     <string name="pref_title_mms_delete" msgid="7265878070847351664">"Limit multimediálních zpráv"</string>
     <string name="pref_title_notification_enabled" msgid="9118792213953729414">"Oznámení"</string>
-    <string name="pref_summary_notification_enabled" msgid="619729096820999905">"Zobrazovat oznámení o zprávě na stavovém řádku"</string>
     <string name="pref_title_notification_vibrateWhen" msgid="4251208067092761057">"Vibrace"</string>
-    <string name="pref_summary_notification_vibrateWhen" msgid="669655090822561447">"Při oznámení také vibrovat"</string>
-    <string name="pref_title_notification_ringtone" msgid="5467265237106229952">"Zvolit vyzvánění"</string>
+    <string name="pref_title_notification_ringtone" msgid="8667533917574559659">"Zvuk"</string>
     <string name="pref_messages_to_save" msgid="3202539743892934926">"Nastavit počet ukládaných zpráv"</string>
-  <string-array name="prefEntries_vibrateWhen">
-    <item msgid="2520871831815631409">"Vždy"</item>
-    <item msgid="6069709696037750627">"Pouze v tichém režimu"</item>
-    <item msgid="7486145357487111435">"Nikdy"</item>
-  </string-array>
-    <string name="prefDialogTitle_vibrateWhen" msgid="6419655771690242118">"Vibrace"</string>
+    <string name="silent_ringtone" msgid="7981237991326592780">"Tichý"</string>
     <string name="pref_title_mms_auto_retrieval" msgid="4021878285474431355">"Automatické načítání"</string>
     <string name="pref_summary_mms_auto_retrieval" msgid="925163257363757048">"Automaticky načítat zprávy"</string>
     <string name="pref_title_mms_retrieval_during_roaming" msgid="6016227402731817804">"Autonačítání za roamingu"</string>
@@ -381,7 +374,6 @@
     <string name="gestures_already_present">Varování: podobné gesto je již přiřazené k jiné šabloně!</string>
 
     <!-- Change Vibrate pattern/method for message notification -->
-    <string name="pref_title_mms_notification_vibrate_settings">Nastavení vibrací</string>
     <string name="pref_title_mms_notification_vibrate_pattern">Vzor vibrace</string>
     <string name="pref_summary_mms_notification_vibrate_pattern">Změnit vzor vibrace</string>
     <string name="pref_title_mms_notification_vibrate_call">Vibrovat během hovoru</string>
@@ -400,6 +392,9 @@
     <string name="pref_title_enable_emojis">Podpora smajlíků</string>
     <string name="pref_summary_enable_emojis">Povolit podporu unicode smajlíků, sada obsahuje 471 pěkných smajlíků</string>
 
+    <!-- Emoji Menu item -->
+    <string name="menu_insert_emoji">Vložit smajlík</string>
+
     <!-- Full timestamps -->
     <string name="pref_title_mms_full_timestamp">Kompletní časový údaj</string>
     <string name="pref_summary_mms_full_timestamp">Zobrazení času i datumu v informacích o zprávě</string>
@@ -411,6 +406,9 @@
     <string name="pref_keyboard_emoji">Zobrazit klávesu pro smajlíky</string>
     <string name="pref_keyboard_new_line">Zobrazit klávesu Enter</string>
     <string name="pref_keyboard_unknown">Neplatná volba, zkuste to znovu</string>
+
+    <!-- Settings item for the soft keyboard picker -->
+    <string name="pref_title_input_type">Chování klávesy Enter</string>
 
     <!-- QUICKMESSAGE SUPPORT -->
     <!-- Preferences -->
@@ -437,7 +435,8 @@
     <string name="toast_sending_message">Zpráva je odesílána\u2026</string>
 
     <!-- QM - Quick reply -->
-    <string name="qm_quick_reply">Rychlá odpověď</string>
+    <string name="qm_quick_reply">Odpovědět</string>
+    <string name="qm_mark_read">Přečteno</string>
 
     <!-- Add menu for 'Add SMS to calendar remind' -->
     <string name="menu_add_to_calendar">Přidat do kalendáře</string>

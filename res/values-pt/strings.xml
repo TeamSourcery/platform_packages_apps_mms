@@ -172,17 +172,10 @@
     <string name="pref_title_sms_delete" msgid="6890538316799296878">"Limite de mensagens de texto"</string>
     <string name="pref_title_mms_delete" msgid="7265878070847351664">"Limite de mens. multimídia"</string>
     <string name="pref_title_notification_enabled" msgid="9118792213953729414">"Notificações"</string>
-    <string name="pref_summary_notification_enabled" msgid="619729096820999905">"Exibe notificações de mensagem na barra de status"</string>
     <string name="pref_title_notification_vibrateWhen" msgid="4251208067092761057">"Vibrar"</string>
-    <string name="pref_summary_notification_vibrateWhen" msgid="669655090822561447">"Também vibra quando notificado"</string>
-    <string name="pref_title_notification_ringtone" msgid="5467265237106229952">"Escolher toque"</string>
+    <string name="pref_title_notification_ringtone" msgid="8667533917574559659">"Som"</string>
     <string name="pref_messages_to_save" msgid="3202539743892934926">"Definir número de mensagens a serem salvas"</string>
-  <string-array name="prefEntries_vibrateWhen">
-    <item msgid="2520871831815631409">"Sempre"</item>
-    <item msgid="6069709696037750627">"Apenas quando estiver no silencioso"</item>
-    <item msgid="7486145357487111435">"Nunca"</item>
-  </string-array>
-    <string name="prefDialogTitle_vibrateWhen" msgid="6419655771690242118">"Vibrar"</string>
+    <string name="silent_ringtone" msgid="7981237991326592780">"Silencioso"</string>
     <string name="pref_title_mms_auto_retrieval" msgid="4021878285474431355">"Recuperação automática"</string>
     <string name="pref_summary_mms_auto_retrieval" msgid="925163257363757048">"Recupera mensagens automaticamente"</string>
     <string name="pref_title_mms_retrieval_during_roaming" msgid="6016227402731817804">"Recuper. em roaming"</string>
@@ -374,7 +367,6 @@
     <string name="template_cancel_confirm_title">Aviso</string>
     <string name="template_cancel_confirm_text">O modelo vai ser apagado. Prosseguir?</string>
     <string name="gestures_already_present">Aviso: Um gesto similar está associado a outro modelo!</string>
-    <string name="pref_title_mms_notification_vibrate_settings">Preferências de vibração</string>
     <string name="pref_title_mms_notification_vibrate_pattern">Padrão de vibração</string>
     <string name="pref_summary_mms_notification_vibrate_pattern">Trocar o padrão de vibração</string>
     <string name="pref_title_mms_notification_vibrate_call">Vibrar quando Chamar</string>
@@ -408,10 +400,19 @@
     <string name="pref_dark_theme_title">Usar tema escuro</string>
     <string name="pref_dark_theme_summary">Se não estiver selecionado, será utilizado o tema \'claro\' padrão</string>
     <string name="pref_title_input_type">Tipo de teclado virtual</string>
-    <string name="pref_summary_input_type">Selecione o tipo de teclado virtual para ser usado ao compor mensagens</string>
     <string name="pref_keyboard_new_line">Enter para uma nova linha</string>
     <string name="menu_add_to_calendar">Adicionar ao calendário</string>
     <string name="pref_keyboard_emoji">Exibir a tecla de Emoticons</string>
     <string name="pref_keyboard_unknown">Desconhecido, favor reselecionar</string>
     <string name="qm_mark_read">Lida</string>
+    <string name="pref_title_notification_privacy_mode_enabled">Modo de privacidade</string>
+    <string name="pref_summary_notification_privacy_mode_enabled">Ocultar remetente e mensagem na barra de status e desativar resposta Rápida</string>
+    <string name="notification_single_title_privacy_mode">Nova mensagem</string>
+    <string name="notification_single_text_privacy_mode">1 mensagem não lida</string>
+    <string name="notification_multiple_title_privacy_mode">Novas mensagens</string>
+    <string name="notification_multiple_text_privacy_mode"><xliff:g id="number" example="3" xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">%1$s</xliff:g> mensagens não lidas</string>
+    <string name="notification_ticker_privacy_mode">Nova mensagem recebida</string>
+    <string name="menu_insert_contact_info">Inserir info. de contato</string>
+    <string name="cannot_find_contact">Não foi possível inserir informação do contato escolhido</string>
+    <string name="insert_contact_info_positive_button">Inserir</string>
 </resources>

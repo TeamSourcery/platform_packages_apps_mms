@@ -125,7 +125,7 @@ public class SlideshowAttachmentView extends LinearLayout implements
     }
 
     public void reset() {
-        mImageView.setImageBitmap(null);
+        mImageView.setImageURI(null);
         mTextView.setText("");
     }
 

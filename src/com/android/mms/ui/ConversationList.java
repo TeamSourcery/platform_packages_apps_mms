@@ -17,6 +17,7 @@
 
 package com.android.mms.ui;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -37,6 +38,16 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.content.res.Resources;
+import android.content.res.Resources.NotFoundException;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.InsetDrawable;
+import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SqliteWrapper;
@@ -58,14 +69,13 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewGroup.LayoutParams;
+import android.view.ViewParent;
 import android.view.View.OnCreateContextMenuListener;
 import android.view.View.OnKeyListener;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
-import android.widget.CheckBox;
-import android.widget.ListView;
-import android.widget.SearchView;
-import android.widget.TextView;
+import android.widget.*;
+import android.widget.ImageView.ScaleType;
 
 import com.android.mms.LogTag;
 import com.android.mms.R;
@@ -73,6 +83,7 @@ import com.android.mms.data.Contact;
 import com.android.mms.data.ContactList;
 import com.android.mms.data.Conversation;
 import com.android.mms.data.Conversation.ConversationQueryHandler;
+import com.android.mms.themes.Constants;
 import com.android.mms.transaction.MessagingNotification;
 import com.android.mms.transaction.SmsRejectedReceiver;
 import com.android.mms.util.DraftCache;
@@ -100,7 +111,6 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     public static final int MENU_VIEW                 = 1;
     public static final int MENU_VIEW_CONTACT         = 2;
     public static final int MENU_ADD_TO_CONTACTS      = 3;
-    public static final int MENU_MARK_ALL_READ        = 4;
 
     public static boolean mIsRunning;
 
@@ -119,6 +129,10 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     private final static String LAST_LIST_POS = "last_list_pos";
     private final static String LAST_LIST_OFFSET = "last_list_offset";
 
+    private ListView listView;
+    // image background
+    private Bitmap mImageBackground;
+
     static private final String CHECKED_MESSAGE_LIMITS = "checked_message_limits";
 
     @Override
@@ -129,7 +143,10 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
 
         mQueryHandler = new ThreadListQueryHandler(getContentResolver());
 
-        ListView listView = getListView();
+        mHandler = new Handler();
+        mPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+
+        listView = getListView();
         listView.setOnCreateContextMenuListener(mConvListOnCreateContextMenuListener);
         listView.setOnKeyListener(mThreadListKeyListener);
         listView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE_MODAL);
@@ -137,15 +154,13 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
 
         // Tell the list view which view to display when the list is empty
         listView.setEmptyView(findViewById(R.id.empty));
+        setBackground(); // custom background
 
         initListAdapter();
 
         setupActionBar();
 
         setTitle(R.string.app_label);
-
-        mHandler = new Handler();
-        mPrefs = PreferenceManager.getDefaultSharedPreferences(this);
         boolean checkedMessageLimits = mPrefs.getBoolean(CHECKED_MESSAGE_LIMITS, false);
         if (DEBUG) Log.v(TAG, "checkedMessageLimits: " + checkedMessageLimits);
         if (!checkedMessageLimits || DEBUG) {
@@ -168,12 +183,12 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
 
         outState.putInt(LAST_LIST_POS, mSavedFirstVisiblePosition);
         outState.putInt(LAST_LIST_OFFSET, mSavedFirstItemOffset);
+        setBackground(); // custom background
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        mIsRunning = false;
 
         // Remember where the list is scrolled to so we can restore the scroll position
         // when we come back to this activity and *after* we complete querying for the
@@ -182,6 +197,8 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
         mSavedFirstVisiblePosition = listView.getFirstVisiblePosition();
         View firstChild = listView.getChildAt(0);
         mSavedFirstItemOffset = (firstChild == null) ? 0 : firstChild.getTop();
+        mIsRunning = false;
+        setBackground(); // custom background
     }
 
     private void setupActionBar() {
@@ -319,6 +336,7 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
     protected void onResume() {
         super.onResume();
         mIsRunning = true;
+        setBackground(); // custom background
     }
 
     @Override
@@ -430,16 +448,6 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
         if (item != null) {
             item.setVisible(mListAdapter.getCount() > 0);
         }
-        item = menu.findItem(R.id.action_mark_all_read);
-        if (item != null) {
-            if (Conversation.areAllConversationsRead(getApplicationContext()) == 0) {
-                item.setVisible(false);
-                item.setEnabled(false);
-            } else {
-                item.setVisible(true);
-                item.setEnabled(true);
-            }
-        }
         if (!LogTag.DEBUG_DUMP) {
             item = menu.findItem(R.id.action_debug_dump);
             if (item != null) {
@@ -466,9 +474,6 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
             case R.id.action_delete_all:
                 // The invalid threadId of -1 means all threads here.
                 confirmDeleteThread(-1L, mQueryHandler);
-                break;
-            case R.id.action_mark_all_read:
-                Conversation.markAllConversationsAsRead(getApplicationContext());
                 break;
             case R.id.action_settings:
                 Intent intent = new Intent(this, MessagingPreferenceActivity.class);
@@ -566,7 +571,6 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
                 }
             }
             menu.add(0, MENU_DELETE, 0, R.string.menu_delete);
-            menu.add(0, MENU_MARK_ALL_READ, 0, R.string.menu_mark_all_read);
         }
     };
 
@@ -692,6 +696,20 @@ public class ConversationList extends ListActivity implements DraftCache.OnDraft
             .setNegativeButton(R.string.no, null)
             .setView(contents)
             .show();
+    }
+
+    private void setBackground() {
+        final String CUSTOM_IMAGE_PATH = "/data/data/com.android.mms/files/conversation_list_image.jpg";
+        File file = new File(CUSTOM_IMAGE_PATH);
+
+        listView.setBackgroundColor(mPrefs.getInt(Constants.PREF_CONV_LIST_BG, 0x00000000)); //list background
+
+        if (file.exists()) {
+            mImageBackground = BitmapFactory.decodeFile(CUSTOM_IMAGE_PATH);
+            Drawable d = new BitmapDrawable(getResources(), mImageBackground);
+            d.setColorFilter(mPrefs.getInt(Constants.PREF_CONV_LIST_BG, 0x00000000), PorterDuff.Mode.SRC_ATOP);
+            listView.setBackgroundDrawable(d);
+        }
     }
 
     private final OnKeyListener mThreadListKeyListener = new OnKeyListener() {

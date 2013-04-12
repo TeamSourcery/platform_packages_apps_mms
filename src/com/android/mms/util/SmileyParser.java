@@ -21,6 +21,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.PorterDuff;
+import android.preference.PreferenceManager;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
 import android.text.style.ImageSpan;
@@ -40,12 +43,14 @@ public class SmileyParser {
     }
 
     private final Context mContext;
+    private final SharedPreferences sp;
     private final String[] mSmileyTexts;
     private final Pattern mPattern;
     private final HashMap<String, Integer> mSmileyToRes;
 
     private SmileyParser(Context context) {
         mContext = context;
+        sp = PreferenceManager.getDefaultSharedPreferences(mContext);
         mSmileyTexts = mContext.getResources().getStringArray(DEFAULT_SMILEY_TEXTS);
         mSmileyToRes = buildSmileyToRes();
         mPattern = buildPattern();
@@ -195,6 +200,25 @@ public class SmileyParser {
 
         return builder;
     }
+
+    /**
+     * Adds ImageSpans to a CharSequence that replace textual emoticons such
+     * as :-) with a graphical version.
+     *
+     * @param text A CharSequence possibly containing emoticons
+     * @return A CharSequence annotated with ImageSpans covering any
+     *         recognized emoticons.
+     */
+    public CharSequence addSmileySpansColored(CharSequence text, int color) {
+        SpannableStringBuilder builder = new SpannableStringBuilder(text);
+        Matcher matcher = mPattern.matcher(text);
+        while (matcher.find()) {
+            int resId = mSmileyToRes.get(matcher.group());
+            ImageSpan mSpan = new ImageSpan(mContext, resId);
+            mSpan.getDrawable().setColorFilter(color, PorterDuff.Mode.SRC_ATOP);
+            builder.setSpan(mSpan, matcher.start(),
+                    matcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return builder;
+    }
 }
-
-

@@ -17,6 +17,8 @@
 
 package com.android.mms.transaction;
 
+import java.util.ArrayList;
+
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -34,8 +36,6 @@ import com.android.mms.LogTag;
 import com.android.mms.MmsConfig;
 import com.android.mms.ui.MessagingPreferenceActivity;
 import com.google.android.mms.MmsException;
-
-import java.util.ArrayList;
 
 public class SmsMessageSender implements MessageSender {
     protected final Context mContext;

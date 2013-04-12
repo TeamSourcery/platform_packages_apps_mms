@@ -236,10 +236,6 @@ public class TransactionService extends Service implements Observer {
                         }
                         MmsSystemEventReceiver.registerForConnectionStateChanges(
                                 getApplicationContext());
-                    } else {
-                        // MMS data is available now, do not need listen to state change.
-                        MmsSystemEventReceiver.unRegisterForConnectionStateChanges(
-                                getApplicationContext());
                     }
 
                     while (cursor.moveToNext()) {
@@ -471,7 +467,6 @@ public class TransactionService extends Service implements Observer {
             if (Log.isLoggable(LogTag.TRANSACTION, Log.VERBOSE)) {
                 Log.v(TAG, "update: broadcast transaction result " + result);
             }
-
             // Broadcast the result of the transaction.
             sendBroadcast(intent);
 
@@ -479,7 +474,6 @@ public class TransactionService extends Service implements Observer {
             //   will deep sleep not reporting incoming Mms to the user
             if (needToEndMmsConnectivity)
                 endMmsConnectivity();
-
         } finally {
             transaction.detach(this);
             MmsSystemEventReceiver.unRegisterForConnectionStateChanges(getApplicationContext());

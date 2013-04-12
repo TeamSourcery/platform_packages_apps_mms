@@ -26,7 +26,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.ActivityNotFoundException;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -485,16 +484,12 @@ public class MessageUtils {
     }
 
     public static void recordSound(Activity activity, int requestCode, long sizeLimit) {
-        try {
-            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType(ContentType.AUDIO_AMR);
-            intent.setClassName("com.android.soundrecorder",
-                    "com.android.soundrecorder.SoundRecorder");
-            intent.putExtra(android.provider.MediaStore.Audio.Media.EXTRA_MAX_BYTES, sizeLimit);
-            activity.startActivityForResult(intent, requestCode);
-        } catch (ActivityNotFoundException e) {
-            Toast.makeText(activity, R.string.record_sound_error_alert, Toast.LENGTH_LONG).show();
-        }
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType(ContentType.AUDIO_AMR);
+        intent.setClassName("com.android.soundrecorder",
+                "com.android.soundrecorder.SoundRecorder");
+        intent.putExtra(android.provider.MediaStore.Audio.Media.EXTRA_MAX_BYTES, sizeLimit);
+        activity.startActivityForResult(intent, requestCode);
     }
 
     public static void recordVideo(Activity activity, int requestCode, long sizeLimit) {
@@ -909,7 +904,6 @@ public class MessageUtils {
         // Launch the slideshow activity to play/view.
         Intent intent = new Intent(context, SlideshowActivity.class);
         intent.setData(msgUri);
-        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (requestCode > 0 && context instanceof Activity) {
             ((Activity)context).startActivityForResult(intent, requestCode);
         } else {

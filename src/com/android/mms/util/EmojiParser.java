@@ -832,7 +832,7 @@ public class EmojiParser {
     /**
      * Adds ImageSpans to a CharSequence that replace unicode emojis with a
      * graphical version.
-     *
+     * 
      * @param text A String possibly containing emojis (using string for UTF-16)
      * @return A CharSequence annotated with ImageSpans covering any recognized
      *         emojis

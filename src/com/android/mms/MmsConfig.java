@@ -22,7 +22,9 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.res.XmlResourceParser;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.android.internal.telephony.TelephonyProperties;
@@ -43,7 +45,7 @@ public class MmsConfig {
      * Whether to hide MMS functionality from the user (i.e. SMS only).
      */
     private static boolean mTransIdEnabled = false;
-    private static boolean mMmsEnabled = true;                  // default to true
+    private static int mMmsEnabled = 1;                         // default to true
     private static int mMaxMessageSize = 300 * 1024;            // default to 300k max size
     private static String mUserAgent = DEFAULT_USER_AGENT;
     private static String mUaProfTagName = DEFAULT_HTTP_KEY_X_WAP_PROFILE;
@@ -63,13 +65,18 @@ public class MmsConfig {
     private static boolean mNotifyWapMMSC = false;
     private static boolean mAllowAttachAudio = true;
 
+    // See the comment below for mEnableMultipartSMS.
+    private static int mSmsToMmsTextThreshold = 4;
+    private static int mSmsToMmsTextThresholdMin = 1;            // default value
+    private static int mSmsToMmsTextThresholdMax = 100;          // default value
+
     // If mEnableMultipartSMS is true, long sms messages are always sent as multi-part sms
     // messages, with no checked limit on the number of segments.
     // If mEnableMultipartSMS is false, then as soon as the user types a message longer
     // than a single segment (i.e. 140 chars), then the message will turn into and be sent
     // as an mms message. This feature exists for carriers that don't support multi-part sms's.
     private static boolean mEnableMultipartSMS = true;
-
+    
     // By default, the radio splits multipart sms, not the application. If the carrier or radio
     // does not support this, and the recipient gets garbled text, set this to true. If this is
     // true and mEnableMultipartSMS is false, the mSmsToMmsTextThreshold will be observed,
@@ -78,12 +85,6 @@ public class MmsConfig {
 
     // Support to hide sprint VVM's 9016 text mesages.
     private static boolean mEnableSprintVVM = false;
-
-    // If mEnableMultipartSMS is true and mSmsToMmsTextThreshold > 1, then multi-part SMS messages
-    // will be converted into a single mms message. For example, if the mms_config.xml file
-    // specifies <int name="smsToMmsTextThreshold">4</int>, then on the 5th sms segment, the
-    // message will be converted to an mms.
-    private static int mSmsToMmsTextThreshold = -1;
 
     private static boolean mEnableSlideDuration = true;
     private static boolean mEnableMMSReadReports = true;        // key: "enableMMSReadReports"
@@ -124,9 +125,18 @@ public class MmsConfig {
     public static int getSmsToMmsTextThreshold() {
         return mSmsToMmsTextThreshold;
     }
+    public static void setSmsToMmsTextThreshold(int threshold) {
+        mSmsToMmsTextThreshold = threshold;
+    }
+    public static int getSmsToMmsTextThresholdMin() {
+        return mSmsToMmsTextThresholdMin;
+    }
+    public static int getSmsToMmsTextThresholdMax() {
+        return mSmsToMmsTextThresholdMax;
+    }
 
     public static boolean getMmsEnabled() {
-        return mMmsEnabled;
+        return mMmsEnabled == 1 ? true : false;
     }
 
     public static int getMaxMessageSize() {
@@ -212,12 +222,15 @@ public class MmsConfig {
     public static boolean getMultipartSmsEnabled() {
         return mEnableMultipartSMS;
     }
+    public static void setEnableMultipartSMS(boolean enable) {
+        mEnableMultipartSMS = enable;
+    }
 
     public static boolean getSplitSmsEnabled() {
         return mEnableSplitSMS;
     }
 
-    public static boolean getSprintVVMEnabled() {
+     public static boolean getSprintVVMEnabled() {
         return mEnableSprintVVM;
     }
 
@@ -269,6 +282,7 @@ public class MmsConfig {
         return mEnableGroupMms;
     }
 
+    
     public static final void beginDocument(XmlPullParser parser, String firstElementName) throws XmlPullParserException, IOException
     {
         int type;
@@ -323,7 +337,7 @@ public class MmsConfig {
                     if ("bool".equals(tag)) {
                         // bool config tags go here
                         if ("enabledMMS".equalsIgnoreCase(value)) {
-                            mMmsEnabled = "true".equalsIgnoreCase(text);
+                            mMmsEnabled = "true".equalsIgnoreCase(text) ? 1 : 0;
                         } else if ("enabledTransID".equalsIgnoreCase(value)) {
                             mTransIdEnabled = "true".equalsIgnoreCase(text);
                         } else if ("enabledNotifyWapMMSC".equalsIgnoreCase(value)) {
@@ -405,6 +419,10 @@ public class MmsConfig {
                     }
                 }
             }
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+            //as the checkbox is checked when the boolean is supposed to be false, double negation :
+            mEnableMultipartSMS = !prefs.getBoolean("pref_key_sms_EnableMultipartSMS", !getMultipartSmsEnabled());
+            mSmsToMmsTextThreshold = prefs.getInt("pref_key_sms_SmsToMmsTextThreshold", getSmsToMmsTextThreshold());
         } catch (XmlPullParserException e) {
             Log.e(TAG, "loadMmsSettings caught ", e);
         } catch (NumberFormatException e) {

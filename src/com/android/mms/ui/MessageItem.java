@@ -164,7 +164,6 @@ public class MessageItem {
                 }
                 mTimestamp = MessageUtils.formatTimeStampString(context, date, mFullTimestamp);
             }
-
             mLocked = cursor.getInt(columnsMap.mColumnSmsLocked) != 0;
             mErrorCode = cursor.getInt(columnsMap.mColumnSmsErrorCode);
         } else if ("mms".equals(type)) {
@@ -203,6 +202,27 @@ public class MessageItem {
         } else {
             throw new MmsException("Unknown type of the message: " + type);
         }
+    }
+
+    // Function to query the sender's address from db
+    private String getMmsSender(long msgId, Context context) {
+        String sender="";
+        final String[] projection =  new String[] { "address", "contact_id", "charset", "type" };
+        final String selection = "type=137"; // "type="+ PduHeaders.FROM,
+
+        Uri.Builder builder = Uri.parse("content://mms").buildUpon();
+        builder.appendPath(String.valueOf(msgId)).appendPath("addr");
+
+        Cursor cursor = context.getContentResolver().query(
+            builder.build(),
+            projection,
+            selection,
+            null, null);
+
+        if (cursor.moveToFirst()) {
+            sender =  cursor.getString(0);
+        }
+        return sender;
     }
 
     private void interpretFrom(EncodedStringValue from, Uri messageUri) {

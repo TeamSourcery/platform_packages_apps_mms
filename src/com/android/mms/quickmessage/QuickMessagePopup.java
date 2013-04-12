@@ -80,6 +80,8 @@ import com.android.mms.MmsConfig;
 import com.android.mms.R;
 import com.android.mms.data.Contact;
 import com.android.mms.data.Conversation;
+import com.android.mms.themes.Constants;
+import com.android.mms.themes.Preferences;
 import com.android.mms.templates.TemplatesProvider.Template;
 import com.android.mms.transaction.MessagingNotification;
 import com.android.mms.transaction.MessagingNotification.NotificationInfo;
@@ -324,6 +326,13 @@ public class QuickMessagePopup extends Activity implements
                 updateMessageCounter();
             }
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        Log.d("CDA", "onBackPressed Called");
+        clearNotification(false);
+        finish();
     }
 
     @Override
@@ -832,10 +841,11 @@ public class QuickMessagePopup extends Activity implements
         // Get the emojis  preference
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
         boolean enableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
+        final int recvColor = Preferences.receivedSmileyColor(prefs);
 
         if (!TextUtils.isEmpty(message)) {
             SmileyParser parser = SmileyParser.getInstance();
-            CharSequence smileyBody = parser.addSmileySpans(message);
+            CharSequence smileyBody = parser.addSmileySpansColored(message, recvColor);
             if (enableEmojis) {
                 EmojiParser emojiParser = EmojiParser.getInstance();
                 smileyBody = emojiParser.addEmojiSpans(smileyBody);
