@@ -37,6 +37,7 @@ import android.os.Parcelable;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.ContactsContract.Profile;
+import android.provider.Settings;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.text.InputFilter;
@@ -189,11 +190,13 @@ public class QuickMessagePopup extends Activity implements
         mFullTimestamp = prefs.getBoolean(MessagingPreferenceActivity.FULL_TIMESTAMP, false);
         mCloseClosesAll = prefs.getBoolean(MessagingPreferenceActivity.QM_CLOSE_ALL_ENABLED, false);
         mWakeAndUnlock = prefs.getBoolean(MessagingPreferenceActivity.QM_LOCKSCREEN_ENABLED, false);
-        mDarkTheme = prefs.getBoolean(MessagingPreferenceActivity.QM_DARK_THEME_ENABLED, false);
         mStripUnicode = prefs.getBoolean(MessagingPreferenceActivity.STRIP_UNICODE, false);
         mEnableEmojis = prefs.getBoolean(MessagingPreferenceActivity.ENABLE_EMOJIS, false);
         mInputMethod = Integer.parseInt(prefs.getString(MessagingPreferenceActivity.INPUT_TYPE,
                 Integer.toString(InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE)));
+
+        mDarkTheme = Settings.Secure.getInt(mContext.getContentResolver(),
+                            Settings.Secure.UI_INVERTED_MODE, 0) == 1;
 
         // Set the window features and layout
         requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -1065,7 +1068,7 @@ public class QuickMessagePopup extends Activity implements
 
             // Load the layout to be used
             LayoutInflater inflater = (LayoutInflater)mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            View layout;
+             View layout;
             if (mDarkTheme) {
                 layout = inflater.inflate(R.layout.quickmessage_content_dark, null);
             } else {
