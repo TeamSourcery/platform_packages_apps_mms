@@ -20,5 +20,5 @@
     <item android:state_pressed="true" android:state_selected="false"
         android:drawable="@drawable/hairline_pressed" />
     <item android:state_selected="false"
-          android:drawable="@color/transparent" />
+          android:drawable="@android:color/white" />
 </selector>
