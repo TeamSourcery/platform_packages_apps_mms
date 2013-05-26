@@ -874,9 +874,10 @@ public class MessagingNotification {
         NotificationInfo mostRecentNotification = notificationSet.first();
 
         final Notification.Builder noti = new Notification.Builder(context)
-                .setWhen(mostRecentNotification.mTimeMillis)
-                .setNumber(messageCount);
-
+                .setWhen(mostRecentNotification.mTimeMillis);
+        if (messageCount > 1) {
+          noti.setNumber(messageCount);
+        }
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
         boolean privacyMode = sp.getBoolean(MessagingPreferenceActivity.PRIVACY_MODE_ENABLED, false);
         if (isNew) {

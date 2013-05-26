@@ -96,7 +96,7 @@
             android:layout="?android:attr/preferenceLayoutChild"
             android:key="pref_recv_text_bg"
             android:title="@string/recv_text_bg"
-            android:defaultValue="#85afafaf"
+            android:defaultValue="#000000"
             alphaSlider="true" />
 
         <com.android.mms.ui.ColorPickerPreference
@@ -104,21 +104,21 @@
             android:key="pref_recv_contact_color"
             android:dependency="pref_use_contact"
             android:title="@string/recv_contact_color"
-            android:defaultValue="#ffffffff"
+            android:defaultValue="ffffffff"
             alphaSlider="true" />
 
         <com.android.mms.ui.ColorPickerPreference
             android:layout="?android:attr/preferenceLayoutChild"
             android:key="pref_recv_textcolor"
             android:title="@string/recv_textcolor"
-            android:defaultValue="#ffffffff"
+            android:defaultValue="#000000"
             alphaSlider="true" />
 
         <com.android.mms.ui.ColorPickerPreference
             android:layout="?android:attr/preferenceLayoutChild"
             android:key="pref_recv_date_color"
             android:title="@string/recv_datecolor"
-            android:defaultValue="#ffffffff"
+            android:defaultValue="#000000"
             alphaSlider="true" />
 
         <com.android.mms.ui.ColorPickerPreference
@@ -153,14 +153,14 @@
             android:layout="?android:attr/preferenceLayoutChild"
             android:key="pref_sent_textcolor"
             android:title="@string/sent_textcolor"
-            android:defaultValue="#ffffffff"
+            android:defaultValue="#000000"
             alphaSlider="true" />
 
         <com.android.mms.ui.ColorPickerPreference
             android:layout="?android:attr/preferenceLayoutChild"
             android:key="pref_sent_date_color"
             android:title="@string/sent_datecolor"
-            android:defaultValue="#ffffffff"
+            android:defaultValue="#000000"
             alphaSlider="true" />
 
         <com.android.mms.ui.ColorPickerPreference
