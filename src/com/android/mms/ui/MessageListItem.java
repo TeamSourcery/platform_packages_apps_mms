@@ -306,7 +306,7 @@ public class MessageListItem extends LinearLayout implements
 
         // Theme settings
         mSentTextBgColor = sp.getInt(Constants.PREF_SENT_TEXT_BG, 0x85afafaf);
-        mRecvTextBgColor = sp.getInt(Constants.PREF_RECV_TEXT_BG, 0x85afafaf);
+        mRecvTextBgColor = sp.getInt(Constants.PREF_RECV_TEXT_BG, 0x00000000);
         getMessageBlockBackground();
         mUseContact = sp.getBoolean(Constants.PREF_USE_CONTACT, false);
         mBubbleFillParent = sp.getBoolean(Constants.PREF_BUBBLE_FILL_PARENT, false);
@@ -369,9 +369,9 @@ public class MessageListItem extends LinearLayout implements
         // Set date and background colors
         int mColor = 0;
         if (mMessageItem.getBoxId() == 1) {
-            mColor = sp.getInt(Constants.PREF_RECV_DATE_COLOR, 0xcdffffff);
+            mColor = sp.getInt(Constants.PREF_RECV_DATE_COLOR, 0xff33b5e5);
          } else {
-            mColor = sp.getInt(Constants.PREF_SENT_DATE_COLOR, 0xcdffffff);
+            mColor = sp.getInt(Constants.PREF_SENT_DATE_COLOR, 0xff606060);
         }
         mDateView.setBackgroundColor(0x00000000);
         mDateView.setTextColor(mColor);
@@ -543,9 +543,9 @@ public class MessageListItem extends LinearLayout implements
         // Set date and background colors
         int mColor = 0;
         if (mMessageItem.getBoxId() == 1) {
-            mColor = sp.getInt(Constants.PREF_RECV_DATE_COLOR, 0xcdffffff);
+            mColor = sp.getInt(Constants.PREF_RECV_DATE_COLOR, 0xff33b5e5);
          } else {
-            mColor = sp.getInt(Constants.PREF_SENT_DATE_COLOR, 0xcdffffff);
+            mColor = sp.getInt(Constants.PREF_SENT_DATE_COLOR, 0xff606060);
         }
         int dateFontSize = Settings.System.getInt(mContext.getContentResolver(),
                 Constants.PREF_DATE_FONT_SIZE, 16);
@@ -732,9 +732,9 @@ public class MessageListItem extends LinearLayout implements
             } catch (NullPointerException e) {
             }
             if (mMessageItem.getBoxId() == 1) {
-                mColor = sp.getInt(Constants.PREF_RECV_CONTACT_COLOR, 0xffffffff);
+                mColor = sp.getInt(Constants.PREF_RECV_CONTACT_COLOR, 0xff33b5e5);
             } else {
-                mColor = sp.getInt(Constants.PREF_SENT_CONTACT_COLOR, 0xffffffff);
+                mColor = sp.getInt(Constants.PREF_SENT_CONTACT_COLOR, 0xff606060);
             }
             int contactFontSize = Settings.System.getInt(mContext.getContentResolver(),
                     Constants.PREF_CONTACT_FONT_SIZE, 16);
@@ -793,9 +793,9 @@ public class MessageListItem extends LinearLayout implements
         // Set the color of the text for messages
         mColor = 0;
         if (mMessageItem.getBoxId() == 1) {
-            mColor = sp.getInt(Constants.PREF_RECV_TEXTCOLOR, 0xffffffff);
+            mColor = sp.getInt(Constants.PREF_RECV_TEXTCOLOR, 0xff606060);
         } else {
-            mColor = sp.getInt(Constants.PREF_SENT_TEXTCOLOR, 0xffffffff);
+            mColor = sp.getInt(Constants.PREF_SENT_TEXTCOLOR, 0xff33b5e5);
         }
 
         buf.setSpan(new ForegroundColorSpan(mColor), contactLength, buf.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
