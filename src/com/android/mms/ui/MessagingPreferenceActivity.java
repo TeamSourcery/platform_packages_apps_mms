@@ -68,6 +68,10 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     public static final String SMS_DELIVERY_REPORT_MODE = "pref_key_sms_delivery_reports";
     public static final String SMS_SPLIT_MESSAGE        = "pref_key_sms_split_160";
     public static final String SMS_SPLIT_COUNTER        = "pref_key_sms_split_counter";
+    public static final String PREF_SMS_MULTI_PART      = "pref_key_sms_multi_part";
+    public static final int SMS_MULTI_PART_MIN          = 0;
+    public static final int SMS_MULTI_PART_MAX          = 100;
+    public static final String PREF_SMS_SPLIT           = "pref_key_sms_split";
     public static final String NOTIFICATION_ENABLED     = "pref_key_enable_notifications";
     public static final String NOTIFICATION_VIBRATE     = "pref_key_vibrate";
     public static final String NOTIFICATION_VIBRATE_WHEN= "pref_key_vibrateWhen";
@@ -109,6 +113,8 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     private Preference mSmsLimitPref;
     private Preference mSmsDeliveryReportPref;
     private CheckBoxPreference mSmsSplitCounterPref;
+    private CheckBoxPreference mSmsSplitPref;
+    private Preference mSmsMultiPartPref;
     private Preference mMmsLimitPref;
     private Preference mMmsDeliveryReportPref;
     private Preference mMmsGroupMmsPref;
@@ -163,6 +169,10 @@ public class MessagingPreferenceActivity extends PreferenceActivity
         mSmsLimitPref = findPreference("pref_key_sms_delete_limit");
         mSmsDeliveryReportPref = findPreference("pref_key_sms_delivery_reports");
         mSmsSplitCounterPref = (CheckBoxPreference) findPreference("pref_key_sms_split_counter");
+        mSmsSplitPref = (CheckBoxPreference) findPreference(PREF_SMS_SPLIT);
+        mSmsSplitPref.setChecked(mSmsSplitPref.isChecked() || MmsConfig.getSplitSmsEnabled());
+        mSmsMultiPartPref = findPreference(PREF_SMS_MULTI_PART);
+        setMultiPartSmsSummary();
         mMmsDeliveryReportPref = findPreference("pref_key_mms_delivery_reports");
         mMmsGroupMmsPref = findPreference("pref_key_mms_group_mms");
         mMmsReadReportPref = findPreference("pref_key_mms_read_reports");
@@ -426,6 +436,14 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                     mMmsRecycler.getMessageMaxLimit(),
                     R.string.pref_title_mms_delete).show();
 
+        } else if (preference == mSmsMultiPartPref) {
+            new NumberPickerDialog(this,
+                    mSmsMultiPartListener,
+                    getMultiPartSmsSize(this),
+                    SMS_MULTI_PART_MIN,
+                    SMS_MULTI_PART_MAX,
+                    R.string.pref_title_sms_multi_part).show();
+
         } else if (preference == mSmsToMmsTextThreshold) {
             new NumberPickerDialog(this,
                     mSmsToMmsTextThresholdListener,
@@ -515,6 +533,14 @@ public class MessagingPreferenceActivity extends PreferenceActivity
                     setSmsToMmsTextThreshold();
                 }
         };
+
+    NumberPickerDialog.OnNumberSetListener mSmsMultiPartListener =
+        new NumberPickerDialog.OnNumberSetListener() {
+            public void onNumberSet(int value) {
+                setMultiPartSmsSize(MessagingPreferenceActivity.this, value);
+                setMultiPartSmsSummary();
+            }
+    };
 
     @Override
     protected Dialog onCreateDialog(int id) {
@@ -634,9 +660,41 @@ public class MessagingPreferenceActivity extends PreferenceActivity
     }
 
     public static boolean getDirectCallEnabled(Context context) {
-    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-    boolean directCallEnabled = prefs.getBoolean(MessagingPreferenceActivity.DIRECT_CALL_PREF,false);
-    return directCallEnabled;
+         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean(DIRECT_CALL_PREF, false);
+    }
+
+    public static boolean getSplitSmsEnabled(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean(PREF_SMS_SPLIT, MmsConfig.getSplitSmsEnabled());
+    }
+
+    private void setMultiPartSmsSize(Context context, int value) {
+        SharedPreferences.Editor editPrefs =
+                PreferenceManager.getDefaultSharedPreferences(context).edit();
+        editPrefs.putInt(PREF_SMS_MULTI_PART, value);
+        editPrefs.apply();
+    }
+
+    public static int getMultiPartSmsSize(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getInt(PREF_SMS_MULTI_PART, MmsConfig.getSmsToMmsTextThreshold());
+    }
+
+    public static boolean getMultiPartSmsEnabled(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return MmsConfig.getMultipartSmsEnabled() && (getMultiPartSmsSize(context) > 0);
+    }
+
+    private void setMultiPartSmsSummary() {
+        if (getMultiPartSmsEnabled(this)) {
+            mSmsMultiPartPref.setSummary(
+                    getString(R.string.pref_summary_sms_multi_part_mms,
+                    getMultiPartSmsSize(this)));
+        } else {
+            mSmsMultiPartPref.setSummary(
+                    getString(R.string.pref_summary_sms_multi_part));
+        }
     }
 
     private void registerListeners() {
